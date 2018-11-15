@@ -63,20 +63,48 @@ fn main() {
             exit(1);
         });
 
-    match tis100::assembly::parse_save_file(&input) {
+    let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
+    let p = tis100::puzzles::get_puzzle(puzzle_num, 39, r).unwrap();
+    println!("{:?}", p);
+
+    let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
+
+    let mut offset = 0;
+    match tis100::assembly::parse_save_file(nom::types::CompleteByteSlice(&input)) {
         Ok((remaining, nodes)) => {
-            for (id, instrs) in nodes {
-                println!("Node {}:", id.0);
-                for i in instrs {
+            if !remaining.is_empty() {
+                println!("{} bytes unparsed at the end of input", remaining.len());
+                exit(1);
+            }
+
+            for (id, asm) in nodes {
+                println!("Save file node {}:", id.0);
+                for i in &asm {
                     println!("\t{:?}", i);
                 }
-            }
-            if !remaining.is_empty() {
-                println!("{} bytes unparsed at the end", remaining.len());
+
+                let mut asm_iter = asm.into_iter();
+                loop {
+                    let programmed = grid.program_node(id.0 as usize + offset, &mut asm_iter);
+                    if programmed {
+                        println!("programmed node {}", id.0 as usize + offset);
+                        break;
+                    } else {
+                        offset += 1;
+                    }
+                }
             }
         }
         Err(e) => {
             println!("parse error: {:?}", e);
         }
+    }
+    println!("{:#?}", grid);
+
+    let mut cycle = 0;
+    loop {
+        println!("cycle {}", cycle);
+        grid.step_all();
+        cycle += 1;
     }
 }

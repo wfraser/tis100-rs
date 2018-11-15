@@ -1,9 +1,18 @@
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NodeId(pub u8);
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Port {
     UP, DOWN, LEFT, RIGHT, ANY, LAST,
+}
+
+impl Port {
+    pub fn opposite(self) -> Port {
+        match self {
+            Port::UP => Port::DOWN,
+            Port::DOWN => Port::UP,
+            Port::LEFT => Port::RIGHT,
+            Port::RIGHT => Port::LEFT,
+            _ => panic!("can't get opposite of {:?}", self)
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]

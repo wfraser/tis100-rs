@@ -5,4 +5,6 @@ authors = ["Bill Fraser <wfraser@codewise.org>"]
 edition = "2018"
 
 [dependencies]
+maplit = "*"
 nom = "4.1.1"
+rand = "*"

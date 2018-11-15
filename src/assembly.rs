@@ -1,17 +1,20 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
+use crate::NodeId;
 use crate::instr::*;
 
+type Input<'a> = nom::types::CompleteByteSlice<'a>;
+
 named!(
-    node_id <&[u8], u8>,
+    node_id <Input, u8>,
     map_res!(
         take_while!(is_digit),
-        |input| u8::from_str(unsafe { std::str::from_utf8_unchecked(input) }))
+        |input: Input| u8::from_str(unsafe { std::str::from_utf8_unchecked(input.0) }))
 );
 
 named!(
-    pub node_tag <&[u8], NodeId>,
+    pub node_tag <Input, NodeId>,
     do_parse!(
         tag!("@") >>
         id: node_id >>
@@ -21,7 +24,7 @@ named!(
 );
 
 named!(
-    port <&[u8], Port>,
+    port <Input, Port>,
     alt_complete!(
         tag!("UP") => { |_| Port::UP }
         | tag!("DOWN") => { |_| Port::DOWN }
@@ -33,7 +36,7 @@ named!(
 );
 
 named!(
-    register <&[u8], Register>,
+    register <Input, Register>,
     alt!(
         tag!("ACC") => { |_| Register::ACC }
         | tag!("NIL") => { |_| Register::NIL }
@@ -45,11 +48,11 @@ fn is_digit(byte: u8) -> bool {
 }
 
 named!(
-    immediate <&[u8], i16>,
+    immediate <Input, i16>,
     map_res!(
         recognize!(tuple!(opt!(tag!("-")), take_while!(is_digit))),
-        |input| {
-            match i16::from_str(unsafe { std::str::from_utf8_unchecked(input) }) {
+        |input: Input| {
+            match i16::from_str(unsafe { std::str::from_utf8_unchecked(input.0) }) {
                 Ok(n) if n < -999 || n > 999 => Err("number out of range"),
                 Err(_) => Err("number out of range"),
                 Ok(n) => Ok(n),
@@ -67,14 +70,14 @@ fn is_label_char(byte: u8) -> bool {
 }
 
 named!(
-    label <&[u8], &str>,
+    label <Input, &str>,
     map!(take_while!(is_label_char),
-        |bytes| unsafe { std::str::from_utf8_unchecked(bytes) }
+        |bytes| unsafe { std::str::from_utf8_unchecked(bytes.0) }
     )
 );
 
 named!(
-    source <&[u8], Src>,
+    source <Input, Src>,
     alt_complete!(
         register => { |r| Src::Register(r) }
         | port => { |p| Src::Port(p) }
@@ -83,7 +86,7 @@ named!(
 );
 
 named!(
-    dest <&[u8], Dst>,
+    dest <Input, Dst>,
     alt_complete!(
         register => { |r| Dst::Register(r) }
         | port => { |p| Dst::Port(p) }
@@ -91,12 +94,12 @@ named!(
 );
 
 named!(
-    comment <&[u8], &[u8]>,
+    comment <Input, Input>,
     preceded!(tag!("#"), take_until!("\n"))
 );
 
 named!(
-    end_of_line <&[u8], ()>,
+    end_of_line <Input, ()>,
     do_parse!(
         space >>
         opt!(comment) >>
@@ -114,10 +117,10 @@ named!(
     )
 );
 
-named!(space <&[u8], &[u8]>, take_while!(nom::is_space));
+named!(space <Input, Input>, take_while!(nom::is_space));
 
 named!(
-    pub instruction <&[u8], Instruction>,
+    pub instruction <Input, Instruction>,
     alt_complete!(
         tag!("NOP") => { |_| Instruction::NOP }
         | do_parse!(
@@ -149,7 +152,7 @@ named!(
             op: alt!(tag!("JMP") | tag!("JEZ") | tag!("JNZ") | tag!("JGZ") | tag!("JLZ")) >>
             space >>
             label: label >>
-            (match op {
+            (match op.0 {
                 b"JMP" => Instruction::JMP,
                 b"JEZ" => Instruction::JEZ,
                 b"JNZ" => Instruction::JNZ,
@@ -168,7 +171,7 @@ named!(
 );
 
 named!(
-    pub program_item <&[u8], ProgramItem>,
+    pub program_item <Input, ProgramItem>,
     alt_complete!(
         do_parse!(
             opt!(eat_separator!(b" \t\r\n")) >>
@@ -180,7 +183,10 @@ named!(
         | do_parse!(
             opt!(eat_separator!(b" \t\r\n")) >>
             i: instruction >>
-            end_of_line >> // instruction MUST have an end-of-line
+            dbg_dmp!(
+                alt!( complete!(end_of_line) => {|_|()}
+                    | eof!() => {|_|()})
+                ) >> // instruction MUST have an end-of-line or EOF
             (ProgramItem::Instruction(i))
         )
         | do_parse!(
@@ -192,7 +198,7 @@ named!(
 );
 
 named!(
-    pub parse_save_file <&[u8], BTreeMap<NodeId, Vec<ProgramItem>>>,
+    pub parse_save_file <Input, BTreeMap<NodeId, Vec<ProgramItem>>>,
     fold_many1!(
         complete!(
             pair!(
