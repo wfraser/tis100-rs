@@ -128,9 +128,7 @@ impl ComputeNode {
                     }
                 }
                 Instruction::SWP => {
-                    let tmp = self.acc;
-                    self.acc = self.bak;
-                    self.bak = tmp;
+                    std::mem::swap(&mut self.acc, &mut self.bak);
                 }
                 Instruction::SAV => {
                     self.bak = self.acc;

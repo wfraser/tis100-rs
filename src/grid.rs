@@ -48,8 +48,6 @@ impl ComputeGrid {
     }
 
     pub fn step_all(&mut self) {
-        println!("--- start of cycle ---");
-
         macro_rules! get_neighbor {
             ($idx:expr, $port:expr) => {
                 if let Some(node) = self.external.get_mut(&(NodeId($idx as u8), $port)) {
@@ -127,16 +125,14 @@ impl ComputeGrid {
                 }
             }
 
-            match result {
-                NodeStepResult::WriteTo(port, val) => {
-                    // FIXME: don't do this until end of the cycle; there needs to be propagation delay
-                    self.nodes[idx].pending_output = Some((port, val));
-                }
-                _ => ()
+            if let NodeStepResult::WriteTo(port, val) = result {
+                // FIXME: don't do this until end of the cycle; there needs to be propagation delay
+                self.nodes[idx].pending_output = Some((port, val));
             }
         }
 
         // Now step the I/O nodes
+        let mut all_verified = true;
         for ((id, rel_port), ref mut node) in &mut self.external {
             let mut avail_reads = vec![];
 
@@ -147,7 +143,12 @@ impl ComputeGrid {
             }
 
             let result = node.step(avail_reads.as_mut_slice());
-            println!("I/O port result: {:?}", result);
+            let iotype = match node.inner {
+                NodeType::Input(_) => "input",
+                NodeType::Output(_) => "output",
+                _ => "<unknown>",
+            };
+            println!("{} port result: {:?}", iotype, result);
 
             if let NodeStepResult::WriteTo(port, val) = result {
                 node.pending_output = Some((port, val));
@@ -160,6 +161,19 @@ impl ComputeGrid {
                     // FIXME: check if the port was ANY and set LAST if it was from a compute node
                 }
             }
+
+            match node.verify_state() {
+                Some(VerifyState::Finished) => (),
+                Some(VerifyState::Failed) => {
+                    panic!("incorrect output");
+                }
+                Some(VerifyState::Blocked) | Some(VerifyState::Okay) => { all_verified = false; }
+                None => ()
+            }
+        }
+
+        if all_verified {
+            panic!("done!");
         }
     }
 }
@@ -202,15 +216,7 @@ impl Node {
                 NodeType::Broken => NodeStepResult::Idle,
                 NodeType::Compute(comp) => comp.execute(avail_reads),
                 NodeType::Input(inp) => inp.step(),
-                NodeType::Output(out) => {
-                    // FIXME: propagate the finished and failed state somehow.
-                    match out.verify(avail_reads) {
-                        VerifyState::Finished => panic!("done"),
-                        VerifyState::Failed => panic!("failed"),
-                        VerifyState::Okay => NodeStepResult::Okay,
-                        VerifyState::Blocked => NodeStepResult::Idle,
-                    }
-                }
+                NodeType::Output(out) => out.step(avail_reads),
             }
         }
     }
@@ -223,6 +229,14 @@ impl Node {
                 true
             }
             _ => panic!("attempted to program an I/O node somehow"),
+        }
+    }
+
+    pub fn verify_state(&self) -> Option<VerifyState> {
+        if let NodeType::Output(out) = &self.inner {
+            Some(out.verified)
+        } else {
+            None
         }
     }
 }
@@ -256,6 +270,7 @@ impl InputNode {
 struct OutputNode {
     values: Vec<i32>,
     pos: usize,
+    verified: VerifyState,
 }
 
 impl OutputNode {
@@ -263,12 +278,22 @@ impl OutputNode {
         OutputNode {
             values,
             pos: 0,
+            verified: VerifyState::Blocked,
         }
     }
 
-    pub fn verify(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> VerifyState {
+    pub fn step(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> NodeStepResult {
+        let state = self.do_verify(&mut avail_reads.get_mut(0));
+        self.verified = state;
+        match state {
+            VerifyState::Blocked | VerifyState::Okay => NodeStepResult::ReadFrom(Port::ANY),
+            VerifyState::Finished | VerifyState::Failed => NodeStepResult::Idle,
+        }
+    }
+
+    pub fn do_verify(&mut self, avail_read: &mut Option<&mut (Port, Option<i32>)>) -> VerifyState {
         if self.pos < self.values.len() {
-            if let Some((_port, val)) = avail_reads.get_mut(0) {
+            if let Some((_port, val)) = avail_read {
                 if val.take() == Some(self.values[self.pos]) {
                     self.pos += 1;
                     if self.pos == self.values.len() {
@@ -288,7 +313,7 @@ impl OutputNode {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum VerifyState {
     Failed,
     Okay,
