@@ -5,29 +5,21 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::exit;
 
-fn puzzle_num_arg() -> Option<Result<i32, std::num::ParseIntError>> {
-    std::env::args().nth(2).map(|s| s.parse::<i32>())
+fn puzzle_num_arg() -> Option<String> {
+    std::env::args().nth(2)
 }
 
-fn puzzle_num(path: &Path) -> i32 {
+fn puzzle_num(path: &Path) -> String {
     puzzle_num_arg()
-        .map(|res| res.unwrap_or_else(|e| {
-            eprintln!("Invalid puzzle number: {}", e);
-            exit(1);
-        }))
         .unwrap_or_else(|| {
             path.file_name().unwrap()
             .to_str().unwrap()
             .split('.')
-            .next().unwrap()
-            .parse::<i32>()
-            .unwrap_or_else(|_| {
+            .next()
+            .and_then(|s| if s.chars().all(|c| c >= '0' && c <= '9') { Some(s.to_owned()) } else { None })
+            .unwrap_or_else(|| {
                 match puzzle_num_arg() {
-                    Some(Ok(n)) => n,
-                    Some(Err(e)) => {
-                        eprintln!("Invalid puzzle number: {}", e);
-                        exit(1);
-                    }
+                    Some(n) => n,
                     None => {
                         eprintln!("Unable to figure out puzzle number from the file name.");
                         eprintln!("Please provide a puzzle number as an extra command line argument.");
@@ -39,7 +31,7 @@ fn puzzle_num(path: &Path) -> i32 {
 }
 
 fn main() {
-    let path = match std::env::args_os().skip(1).next() {
+    let path = match std::env::args_os().nth(1) {
         Some(s) => PathBuf::from(s),
         None => {
             eprintln!("Usage: {} <save file> [<puzzle number>]", std::env::args().nth(0).unwrap());
@@ -64,7 +56,7 @@ fn main() {
         });
 
     let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
-    let p = tis100::puzzles::get_puzzle(puzzle_num, 39, r).unwrap();
+    let p = tis100::puzzles::get_puzzle(&puzzle_num, 39, r).unwrap();
     println!("{:?}", p);
 
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
@@ -103,7 +95,7 @@ fn main() {
 
     let mut cycle = 0;
     loop {
-        println!("cycle {}", cycle);
+        println!("--- start of cycle {} ---", cycle);
         grid.step_all();
         cycle += 1;
     }

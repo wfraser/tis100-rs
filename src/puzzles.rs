@@ -46,11 +46,11 @@ fn random_vec(rng: &mut impl Rng, num: usize, min: i32, max: i32) -> Vec<i32> {
     rng.sample_iter(&range).take(num).collect()
 }
 
-pub fn get_puzzle<R: Rng + Clone + 'static>(number: i32, input_size: usize, mut rng: R)
+pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut rng: R)
     -> Option<Puzzle>
 {
     Some(match number {
-        -1 => {
+        "DBG01" => {
             Puzzle {
                 name: "[simulator debug] Connectivity Check",
                 bad_nodes: &[],
@@ -62,7 +62,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: i32, input_size: usize, mut 
                 },
             }
         }
-        00150 => {
+        "00150" => {
             let r1 = random_vec(&mut rng, input_size, 10, 100);
             let r2 = random_vec(&mut rng, input_size, 10, 100);
             Puzzle {
@@ -78,7 +78,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: i32, input_size: usize, mut 
                 },
             }
         }
-        41427 => {
+        "41427" => {
             let mut input = vec![];
             let mut output1 = vec![999];
             let mut output2 = vec![0];
