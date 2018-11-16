@@ -1,5 +1,5 @@
-use crate::grid::{CycleStepResult, ReadResult, ComputeResult, WriteResult, AdvanceResult, NodeOps};
 use crate::instr::*;
+use crate::node::{StepResult, ReadResult, ComputeResult, WriteResult, AdvanceResult, NodeOps};
 
 use std::collections::HashMap;
 
@@ -24,7 +24,7 @@ macro_rules! get_instr {
         match $self.instructions.get($self.pc) {
             Some(i) => i,
             None => {
-                return CycleStepResult::NotProgrammed;
+                return StepResult::NotProgrammed;
             }
         }
     };
@@ -86,7 +86,7 @@ impl NodeOps for ComputeNode {
             Instruction::ADD(src) => src,
             Instruction::SUB(src) => src,
             Instruction::JRO(src) => src,
-            _ => return CycleStepResult::Done,
+            _ => return StepResult::Done,
         };
 
         self.read_result = Some(match src {
@@ -122,13 +122,13 @@ impl NodeOps for ComputeNode {
                 match read(actual_port, avail_reads, &mut self.last) {
                     Some(value) => value,
                     None => {
-                        return CycleStepResult::IO(*port);
+                        return StepResult::IO(*port);
                     }
                 }
             }
         });
 
-        CycleStepResult::Done
+        StepResult::Done
     }
 
     fn compute(&mut self) -> ComputeResult {
@@ -154,7 +154,7 @@ impl NodeOps for ComputeNode {
                 | Instruction::JLZ(_) | Instruction::JRO(_) => (),
         }
 
-        CycleStepResult::Done
+        StepResult::Done
     }
 
     fn write(&mut self) -> WriteResult {
@@ -173,12 +173,12 @@ impl NodeOps for ComputeNode {
                         *port
                     };
 
-                    return CycleStepResult::IO((actual_port, val));
+                    return StepResult::IO((actual_port, val));
                 }
             }
-            CycleStepResult::Done
+            StepResult::Done
         } else {
-            CycleStepResult::Done
+            StepResult::Done
         }
     }
 
@@ -218,6 +218,6 @@ impl NodeOps for ComputeNode {
 
         self.read_result = None;
 
-        CycleStepResult::Done
+        StepResult::Done
     }
 }

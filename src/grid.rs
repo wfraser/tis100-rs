@@ -2,6 +2,7 @@ use crate::NodeId;
 use crate::compute::ComputeNode;
 use crate::instr::{Port, ProgramItem};
 use crate::io::{InputNode, OutputNode, VerifyState};
+use crate::node::{Node, NodeType, NodeOps};
 use crate::puzzles::{PUZZLE_WIDTH, PUZZLE_HEIGHT, Puzzle};
 
 use std::collections::BTreeMap;
@@ -123,7 +124,7 @@ impl ComputeGrid {
             macro_rules! add_value_from {
                 ($attached_port:expr) => {
                     if let Some(node) = get_neighbor!(idx, $attached_port) {
-                        if let Some((port, val)) = node.pending_output {
+                        if let Some((port, val)) = node.pending_output() {
                             if port == $attached_port.opposite() || port == Port::ANY {
                                 avail_reads.push(($attached_port, Some(val)));
                             }
@@ -155,19 +156,14 @@ impl ComputeGrid {
         for ((id, rel_port), ref mut node) in &mut self.external {
             let mut avail_reads = vec![];
 
-            if let Some((dest_port, value)) = self.nodes[id.0 as usize].pending_output {
+            if let Some((dest_port, value)) = self.nodes[id.0 as usize].pending_output() {
                 if dest_port == Port::ANY || dest_port == *rel_port {
                     avail_reads.push((rel_port.opposite(), Some(value))); // port doesn't matter actually
                 }
             }
 
             let result = node.read(avail_reads.as_mut_slice());
-            let iotype = match node.inner {
-                NodeType::Input(_) => "input",
-                NodeType::Output(_) => "output",
-                _ => "<unknown>",
-            };
-            println!("{} port result: {:?}", iotype, result);
+            println!("{} port result: {:?}", node.type_name(), result);
 
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
@@ -195,23 +191,11 @@ impl ComputeGrid {
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].write();
             println!("node {}: {:?}", idx, result);
-            if let CycleStepResult::IO((port, value)) = result {
-                self.nodes[idx].pending_output = Some((port, value));
-            }
         }
 
         for node in self.external.values_mut() {
             let result = node.write();
-            let iotype = match node.inner {
-                NodeType::Input(_) => "input",
-                NodeType::Output(_) => "output",
-                _ => "<unknown>",
-            };
-            println!("{} port result: {:?}", iotype, result);
-
-            if let CycleStepResult::IO((port, value)) = result {
-                node.pending_output = Some((port, value));
-            }
+            println!("{} port result: {:?}", node.type_name(), result);
         }
     }
 
@@ -224,163 +208,5 @@ impl ComputeGrid {
         for node in self.external.values_mut() {
             node.advance();
         }
-    }
-}
-
-#[derive(Debug)]
-struct Node {
-    inner: NodeType,
-    step: CycleStep,
-    pending_output: Option<(Port, i32)>, // port is relative to this node
-}
-
-#[derive(Debug)]
-enum NodeType {
-    Broken,
-    Compute(ComputeNode),
-    Input(InputNode),
-    Output(OutputNode),
-}
-
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum CycleStep {
-    Read, Compute, Write, Advance
-}
-
-#[derive(Debug)]
-pub enum CycleStepResult<Output> {
-    NotProgrammed,
-    IO(Output),
-    Done,
-    Blocked(CycleStep),
-}
-
-pub type ReadResult = CycleStepResult<Port>;
-pub type ComputeResult = CycleStepResult<!>;
-pub type WriteResult = CycleStepResult<(Port, i32)>;
-pub type AdvanceResult = CycleStepResult<!>;
-
-pub trait NodeOps {
-    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult;
-    fn compute(&mut self) -> ComputeResult;
-    fn write(&mut self) -> WriteResult;
-    fn advance(&mut self) -> AdvanceResult;
-}
-
-impl Node {
-    pub fn new(inner: NodeType) -> Node {
-        Node {
-            inner,
-            step: CycleStep::Read,
-            pending_output: None,
-        }
-    }
-
-    pub fn program_node(&mut self, program_items: impl Iterator<Item=ProgramItem>) -> bool {
-        match &mut self.inner {
-            NodeType::Broken => false,
-            NodeType::Compute(comp) => {
-                comp.load_assembly(program_items);
-                true
-            }
-            _ => panic!("attempted to program an I/O node somehow"),
-        }
-    }
-
-    pub fn verify_state(&self) -> Option<VerifyState> {
-        if let NodeType::Output(out) = &self.inner {
-            Some(out.verified())
-        } else {
-            None
-        }
-    }
-
-    pub fn complete_write(&mut self, port: Port) {
-        assert_eq!(CycleStep::Write, self.step);
-        self.step = CycleStep::Advance;
-        self.pending_output = None;
-
-        if let NodeType::Compute(node) = &mut self.inner {
-            node.complete_write(port);
-        }
-    }
-}
-
-macro_rules! check_step {
-    ($self:expr, $exp:expr) => {
-        if $self.step != $exp {
-            return CycleStepResult::Blocked($self.step);
-        }
-    }
-}
-
-macro_rules! advance_step {
-    ($self:expr, $res:expr, $next:expr) => {
-        match $res {
-            CycleStepResult::Done | CycleStepResult::NotProgrammed => {
-                $self.step = $next
-            }
-            _ => ()
-        }
-    }
-}
-
-impl NodeOps for Node {
-    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
-        check_step!(self, CycleStep::Read);
-        let res = match &mut self.inner {
-            NodeType::Broken => CycleStepResult::NotProgrammed,
-            NodeType::Compute(n) => n.read(avail_reads),
-            NodeType::Input(_) => CycleStepResult::Done,
-            NodeType::Output(n) => {
-                n.read(avail_reads)
-                    .map(CycleStepResult::IO)
-                    .unwrap_or(CycleStepResult::Done)
-            }
-        };
-        advance_step!(self, res, CycleStep::Compute);
-        res
-    }
-
-    fn compute(&mut self) -> ComputeResult {
-        check_step!(self, CycleStep::Compute);
-        let res = match &mut self.inner {
-            NodeType::Broken => CycleStepResult::NotProgrammed,
-            NodeType::Compute(n) => n.compute(),
-            NodeType::Input(_) | NodeType::Output(_) => CycleStepResult::Done,
-        };
-        advance_step!(self, res, CycleStep::Write);
-        res
-    }
-
-    fn write(&mut self) -> WriteResult {
-        check_step!(self, CycleStep::Write);
-        if let Some((port, value)) = self.pending_output {
-            return CycleStepResult::IO((port, value));
-        }
-
-        let res = match &mut self.inner {
-            NodeType::Broken => CycleStepResult::NotProgrammed,
-            NodeType::Compute(n) => n.write(),
-            NodeType::Input(n) => {
-                n.write()
-                    .map(CycleStepResult::IO)
-                    .unwrap_or(CycleStepResult::Done)
-            }
-            NodeType::Output(_) => CycleStepResult::Done,
-        };
-        advance_step!(self, res, CycleStep::Advance);
-        res
-    }
-
-    fn advance(&mut self) -> AdvanceResult {
-        check_step!(self, CycleStep::Advance);
-        let res = match &mut self.inner {
-            NodeType::Broken => CycleStepResult::NotProgrammed,
-            NodeType::Compute(n) => n.advance(),
-            NodeType::Input(_) | NodeType::Output(_) => CycleStepResult::Done,
-        };
-        advance_step!(self, res, CycleStep::Read);
-        res
     }
 }

@@ -16,11 +16,23 @@ impl InputNode {
 
     pub fn write(&mut self) -> Option<(Port, i32)> {
         if self.pos < self.values.len() {
+            self.print();
             self.pos += 1;
             Some((Port::ANY, self.values[self.pos - 1]))
         } else {
             None
         }
+    }
+
+    fn print(&self) {
+        for (idx, n) in self.values.iter().enumerate() {
+            if idx == self.pos {
+                print!("<({})> ", n);
+            } else {
+                print!("{} ", n);
+            }
+        }
+        println!();
     }
 }
 
@@ -60,6 +72,7 @@ impl OutputNode {
                 let received = val.take();
                 if received == Some(self.values[self.pos]) {
                     self.pos += 1;
+                    self.print();
                     if self.pos == self.values.len() {
                         VerifyState::Finished
                     } else {
@@ -67,20 +80,7 @@ impl OutputNode {
                     }
                 } else {
                     println!("wrong input");
-                    for n in &self.values {
-                        print!("{} ", n);
-                    }
-                    println!();
-                    for (idx, n) in self.values.iter().enumerate() {
-                        if idx == self.pos {
-                            println!("^");
-                        } else {
-                            for _ in 0 .. format!("{} ", n).len() {
-                                print!(" ");
-                            }
-                        }
-                    }
-                    println!();
+                    self.print();
                     println!("got {} instead", received.unwrap());
                     VerifyState::Failed
                 }
@@ -90,6 +90,17 @@ impl OutputNode {
         } else {
             VerifyState::Finished
         }
+    }
+
+    fn print(&self) {
+        for (idx, n) in self.values.iter().enumerate() {
+            if idx == self.pos {
+                print!("<({})> ", n);
+            } else {
+                print!("{} ", n);
+            }
+        }
+        println!();
     }
 }
 
