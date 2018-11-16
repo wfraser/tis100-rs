@@ -1,4 +1,4 @@
-use crate::grid::NodeStepResult;
+use crate::grid::{CycleStepResult, ReadResult, ComputeResult, WriteResult, AdvanceResult, NodeOps};
 use crate::instr::*;
 
 use std::collections::HashMap;
@@ -11,6 +11,23 @@ pub struct ComputeNode {
     bak: i32,
     pc: usize,
     last: Port,
+    read_result: Option<i32>,
+}
+
+#[derive(Debug)]
+pub enum CycleStep {
+    Read, Compute, Write, Advance,
+}
+
+macro_rules! get_instr {
+    ($self:expr) => {
+        match $self.instructions.get($self.pc) {
+            Some(i) => i,
+            None => {
+                return CycleStepResult::NotProgrammed;
+            }
+        }
+    };
 }
 
 impl ComputeNode {
@@ -22,6 +39,7 @@ impl ComputeNode {
             bak: 0,
             pc: 0,
             last: Port::LAST, // this value invokes nasal demons
+            read_result: None,
         }
     }
 
@@ -52,121 +70,154 @@ impl ComputeNode {
         }
     }
 
-    pub fn execute(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> NodeStepResult {
-
-        macro_rules! src_value {
-            ($src:expr) => {
-                match $src {
-                    Src::Register(Register::ACC) => self.acc,
-                    Src::Register(Register::NIL) => 0,
-                    Src::Port(port) => {
-                        fn read(
-                            port: Port,
-                            avail_reads: &mut [(Port, Option<i32>)],
-                            last: &mut Port,
-                        ) -> Option<i32> {
-                            for (src_port, value) in avail_reads {
-                                if port == Port::ANY || port == *src_port {
-                                    if port == Port::ANY {
-                                        *last = *src_port;
-                                    }
-                                    return value.take();
-                                }
-                            }
-                            None
-                        }
-
-                        let actual_port = if *port == Port::LAST {
-                            if self.last == Port::LAST {
-                                panic!("attempted to read from unset LAST port!");
-                            }
-                            self.last
-                        } else {
-                            *port
-                        };
-
-                        match read(actual_port, avail_reads, &mut self.last) {
-                            Some(value) => value,
-                            None => {
-                                return NodeStepResult::ReadFrom(*port);
-                            }
-                        }
-                    }
-                    Src::Immediate(i) => i32::from(*i),
-                }
+    pub fn complete_write(&mut self, port: Port) {
+        if let Some(Instruction::MOV(_src, dst)) = self.instructions.get(self.pc) {
+            if let Dst::Port(Port::ANY) = dst {
+                self.last = port;
             }
         }
+    }
+}
 
-        if let Some(instr) = self.instructions.get(self.pc) {
-            match instr {
-                Instruction::NOP => (),
-                Instruction::MOV(src, dst) => {
-                    let val = src_value!(src);
+impl NodeOps for ComputeNode {
+    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
+        let src = match get_instr!(self) {
+            Instruction::MOV(src, _dst) => src,
+            Instruction::ADD(src) => src,
+            Instruction::SUB(src) => src,
+            Instruction::JRO(src) => src,
+            _ => return CycleStepResult::Done,
+        };
 
-                    match dst {
-                        Dst::Register(Register::ACC) => { self.acc = val; }
-                        Dst::Register(Register::NIL) => (),
-                        Dst::Port(port) => {
-                            let actual_port = if *port == Port::LAST {
-                                if self.last == Port::LAST {
-                                    panic!("attempted to write to unset LAST port");
-                                }
-                                self.last
-                            } else {
-                                *port
-                            };
-
-                            // TODO: if port is ANY, grid needs to set LAST to whoever atually read
-                            // it.
-
-                            self.pc += 1;
-                            if self.pc >= self.instructions.len() {
-                                self.pc = 0;
+        self.read_result = Some(match src {
+            Src::Register(Register::ACC) => self.acc,
+            Src::Register(Register::NIL) => 0,
+            Src::Immediate(value) => i32::from(*value),
+            Src::Port(port) => {
+                fn read(
+                    port: Port,
+                    avail_reads: &mut [(Port, Option<i32>)],
+                    last: &mut Port,
+                ) -> Option<i32> {
+                    for (src_port, value) in avail_reads {
+                        if port == Port::ANY || port == *src_port {
+                            if port == Port::ANY {
+                                *last = *src_port;
                             }
-                            return NodeStepResult::WriteTo(actual_port, val);
+                            return value.take();
                         }
                     }
+                    None
                 }
-                Instruction::SWP => {
-                    std::mem::swap(&mut self.acc, &mut self.bak);
+
+                let actual_port = if *port == Port::LAST {
+                    if self.last == Port::LAST {
+                        panic!("attempted to read from unset LAST port!");
+                    }
+                    self.last
+                } else {
+                    *port
+                };
+
+                match read(actual_port, avail_reads, &mut self.last) {
+                    Some(value) => value,
+                    None => {
+                        return CycleStepResult::IO(*port);
+                    }
                 }
-                Instruction::SAV => {
-                    self.bak = self.acc;
-                }
-                Instruction::ADD(src) => {
-                    let rhs = src_value!(src);
-                    self.acc += rhs;
-                }
-                Instruction::SUB(src) => {
-                    let rhs = src_value!(src);
-                    self.acc -= rhs;
-                }
-                Instruction::NEG => {
-                    self.acc = -self.acc;
-                }
-                Instruction::JMP(label) => { self.pc = self.labels[label]; }
-                Instruction::JEZ(label) => if self.acc == 0 { self.pc = self.labels[label]; }
-                Instruction::JNZ(label) => if self.acc != 0 { self.pc = self.labels[label]; }
-                Instruction::JGZ(label) => if self.acc > 0 { self.pc = self.labels[label]; }
-                Instruction::JLZ(label) => if self.acc < 0 { self.pc = self.labels[label]; }
-                Instruction::JRO(src) => {
-                    let off = src_value!(src);
-                    if off < 0 {
-                        self.pc -= -off as usize;
+            }
+        });
+
+        CycleStepResult::Done
+    }
+
+    fn compute(&mut self) -> ComputeResult {
+        match get_instr!(self) {
+            Instruction::NOP => (),
+            Instruction::MOV(_src, _dst) => (),
+            Instruction::SWP => {
+                std::mem::swap(&mut self.acc, &mut self.bak);
+            }
+            Instruction::SAV => {
+                self.bak = self.acc;
+            }
+            Instruction::ADD(_src) => {
+                self.acc += self.read_result.unwrap();
+            }
+            Instruction::SUB(_src) => {
+                self.acc -= self.read_result.unwrap();
+            }
+            Instruction::NEG => {
+                self.acc = -self.acc;
+            }
+            Instruction::JMP(_) | Instruction::JEZ(_) | Instruction::JNZ(_) | Instruction::JGZ(_)
+                | Instruction::JLZ(_) | Instruction::JRO(_) => (),
+        }
+
+        CycleStepResult::Done
+    }
+
+    fn write(&mut self) -> WriteResult {
+        if let Instruction::MOV(_src, dst) = get_instr!(self) {
+            let val = self.read_result.unwrap();
+            match dst {
+                Dst::Register(Register::ACC) => { self.acc = val; }
+                Dst::Register(Register::NIL) => (),
+                Dst::Port(port) => {
+                    let actual_port = if *port == Port::LAST {
+                        if self.last == Port::LAST {
+                            panic!("attempted to write to unset LAST port");
+                        }
+                        self.last
                     } else {
-                        self.pc += off as usize;
-                    }
+                        *port
+                    };
+
+                    return CycleStepResult::IO((actual_port, val));
                 }
             }
-
-            self.pc += 1;
-            if self.pc >= self.instructions.len() {
-                self.pc = 0;
-            }
-
-            NodeStepResult::Okay
+            CycleStepResult::Done
         } else {
-            NodeStepResult::Idle
+            CycleStepResult::Done
         }
+    }
+
+    fn advance(&mut self) -> AdvanceResult {
+        match get_instr!(self) {
+            Instruction::JMP(label) => { self.pc = self.labels[label]; }
+            Instruction::JEZ(label) => if self.acc == 0 { self.pc = self.labels[label]; }
+            Instruction::JNZ(label) => if self.acc != 0 { self.pc = self.labels[label]; }
+            Instruction::JGZ(label) => if self.acc > 0 { self.pc = self.labels[label]; }
+            Instruction::JLZ(label) => if self.acc < 0 { self.pc = self.labels[label]; }
+            Instruction::JRO(_src) => {
+                let off = self.read_result.unwrap();
+                if off < 0 {
+                    if (-off) as usize > self.pc {
+                        self.pc = 0;
+                    } else {
+                        self.pc -= (-off) as usize;
+                    }
+                } else {
+                    self.pc += off as usize;
+                }
+
+                // As an exception to the normal wrap-around, a JRO out of bounds goes to the
+                // last instruction.
+                if self.pc >= self.instructions.len() {
+                    self.pc = self.instructions.len() - 1;
+                }
+            }
+            _ => {
+                self.pc += 1;
+            }
+        }
+
+        if self.pc >= self.instructions.len() {
+            self.pc = 0;
+        }
+
+        self.read_result = None;
+
+        CycleStepResult::Done
     }
 }

@@ -47,7 +47,32 @@ impl ComputeGrid {
         self.nodes[idx].program_node(program_items)
     }
 
-    pub fn step_all(&mut self) {
+    pub fn step(&mut self) {
+        self.read();
+        self.compute();
+        self.write();
+        self.advance();
+
+        let mut all_verified = true;
+        for node in self.external.values() {
+            match node.verify_state() {
+                Some(VerifyState::Finished) => (),
+                Some(VerifyState::Failed) => {
+                    panic!("incorrect output");
+                }
+                Some(VerifyState::Blocked) | Some(VerifyState::Okay) => { all_verified = false; }
+                None => ()
+            }
+        }
+
+        if all_verified {
+            panic!("done!");
+        }
+    }
+
+    pub fn read(&mut self) {
+        println!("- read step -");
+
         macro_rules! get_neighbor {
             ($idx:expr, $port:expr) => {
                 if let Some(node) = self.external.get_mut(&(NodeId($idx as u8), $port)) {
@@ -88,8 +113,6 @@ impl ComputeGrid {
             }
         }
 
-        // Step all the compute nodes first. if they try to read this cycle, they'll wait until
-        // next time to complete.
         for idx in 0 .. self.nodes.len() {
 
             // get readable values from neighbors
@@ -114,25 +137,20 @@ impl ComputeGrid {
             add_value_from!(Port::DOWN);
 
             // Step the node!
-            let result = self.nodes[idx].step(avail_reads.as_mut_slice());
+
+            let result = self.nodes[idx].read(avail_reads.as_mut_slice());
             println!("node {}: {:?}", idx, result);
 
             for (port, val) in &avail_reads {
                 if val.is_none() {
                     // the value was taken
-                    get_neighbor!(idx, *port).unwrap().pending_output = None;
-                    // FIXME: check if the port was ANY and set LAST if it was from a compute node
+                    // FIXME: this usage of port is dubious: what if it is ANY?
+                    get_neighbor!(idx, *port).unwrap().complete_write(*port);
                 }
-            }
-
-            if let NodeStepResult::WriteTo(port, val) = result {
-                // FIXME: don't do this until end of the cycle; there needs to be propagation delay
-                self.nodes[idx].pending_output = Some((port, val));
             }
         }
 
         // Now step the I/O nodes
-        let mut all_verified = true;
         for ((id, rel_port), ref mut node) in &mut self.external {
             let mut avail_reads = vec![];
 
@@ -142,7 +160,7 @@ impl ComputeGrid {
                 }
             }
 
-            let result = node.step(avail_reads.as_mut_slice());
+            let result = node.read(avail_reads.as_mut_slice());
             let iotype = match node.inner {
                 NodeType::Input(_) => "input",
                 NodeType::Output(_) => "output",
@@ -150,30 +168,60 @@ impl ComputeGrid {
             };
             println!("{} port result: {:?}", iotype, result);
 
-            if let NodeStepResult::WriteTo(port, val) = result {
-                node.pending_output = Some((port, val));
-            }
-
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
                     // the value was taken
-                    self.nodes[id.0 as usize].pending_output = None;
-                    // FIXME: check if the port was ANY and set LAST if it was from a compute node
+                    self.nodes[id.0 as usize].complete_write(*rel_port);
                 }
             }
+        }
+    }
 
-            match node.verify_state() {
-                Some(VerifyState::Finished) => (),
-                Some(VerifyState::Failed) => {
-                    panic!("incorrect output");
-                }
-                Some(VerifyState::Blocked) | Some(VerifyState::Okay) => { all_verified = false; }
-                None => ()
+    fn compute(&mut self) {
+        println!("- compute step -");
+        for idx in 0 .. self.nodes.len() {
+            let result = self.nodes[idx].compute();
+            println!("node {}: {:?}", idx, result);
+        }
+        for node in self.external.values_mut() {
+            node.compute();
+        }
+    }
+
+    fn write(&mut self) {
+        println!("- write step -");
+
+        for idx in 0 .. self.nodes.len() {
+            let result = self.nodes[idx].write();
+            println!("node {}: {:?}", idx, result);
+            if let CycleStepResult::IO((port, value)) = result {
+                self.nodes[idx].pending_output = Some((port, value));
             }
         }
 
-        if all_verified {
-            panic!("done!");
+        for node in self.external.values_mut() {
+            let result = node.write();
+            let iotype = match node.inner {
+                NodeType::Input(_) => "input",
+                NodeType::Output(_) => "output",
+                _ => "<unknown>",
+            };
+            println!("{} port result: {:?}", iotype, result);
+
+            if let CycleStepResult::IO((port, value)) = result {
+                node.pending_output = Some((port, value));
+            }
+        }
+    }
+
+    fn advance(&mut self) {
+        println!("- advance step -");
+        for idx in 0 .. self.nodes.len() {
+            let result = self.nodes[idx].advance();
+            println!("node {}: {:?}", idx, result);
+        }
+        for node in self.external.values_mut() {
+            node.advance();
         }
     }
 }
@@ -181,6 +229,7 @@ impl ComputeGrid {
 #[derive(Debug)]
 struct Node {
     inner: NodeType,
+    step: CycleStep,
     pending_output: Option<(Port, i32)>, // port is relative to this node
 }
 
@@ -192,32 +241,37 @@ enum NodeType {
     Output(OutputNode),
 }
 
+#[derive(Debug, PartialEq, Copy, Clone)]
+pub enum CycleStep {
+    Read, Compute, Write, Advance
+}
+
 #[derive(Debug)]
-pub enum NodeStepResult {
-    ReadFrom(Port),
-    WriteTo(Port, i32),
-    Okay,
-    Idle,
+pub enum CycleStepResult<Output> {
+    NotProgrammed,
+    IO(Output),
+    Done,
+    Blocked(CycleStep),
+}
+
+pub type ReadResult = CycleStepResult<Port>;
+pub type ComputeResult = CycleStepResult<!>;
+pub type WriteResult = CycleStepResult<(Port, i32)>;
+pub type AdvanceResult = CycleStepResult<!>;
+
+pub trait NodeOps {
+    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult;
+    fn compute(&mut self) -> ComputeResult;
+    fn write(&mut self) -> WriteResult;
+    fn advance(&mut self) -> AdvanceResult;
 }
 
 impl Node {
     pub fn new(inner: NodeType) -> Node {
         Node {
             inner,
+            step: CycleStep::Read,
             pending_output: None,
-        }
-    }
-
-    pub fn step(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> NodeStepResult {
-        if let Some((port, value)) = self.pending_output {
-            NodeStepResult::WriteTo(port, value)
-        } else {
-            match &mut self.inner {
-                NodeType::Broken => NodeStepResult::Idle,
-                NodeType::Compute(comp) => comp.execute(avail_reads),
-                NodeType::Input(inp) => inp.step(),
-                NodeType::Output(out) => out.step(avail_reads),
-            }
         }
     }
 
@@ -239,6 +293,95 @@ impl Node {
             None
         }
     }
+
+    pub fn complete_write(&mut self, port: Port) {
+        assert_eq!(CycleStep::Write, self.step);
+        self.step = CycleStep::Advance;
+        self.pending_output = None;
+
+        if let NodeType::Compute(node) = &mut self.inner {
+            node.complete_write(port);
+        }
+    }
+}
+
+macro_rules! check_step {
+    ($self:expr, $exp:expr) => {
+        if $self.step != $exp {
+            return CycleStepResult::Blocked($self.step);
+        }
+    }
+}
+
+macro_rules! advance_step {
+    ($self:expr, $res:expr, $next:expr) => {
+        match $res {
+            CycleStepResult::Done | CycleStepResult::NotProgrammed => {
+                $self.step = $next
+            }
+            _ => ()
+        }
+    }
+}
+
+impl NodeOps for Node {
+    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
+        check_step!(self, CycleStep::Read);
+        let res = match &mut self.inner {
+            NodeType::Broken => CycleStepResult::NotProgrammed,
+            NodeType::Compute(n) => n.read(avail_reads),
+            NodeType::Input(_) => CycleStepResult::Done,
+            NodeType::Output(n) => {
+                n.read(avail_reads)
+                    .map(CycleStepResult::IO)
+                    .unwrap_or(CycleStepResult::Done)
+            }
+        };
+        advance_step!(self, res, CycleStep::Compute);
+        res
+    }
+
+    fn compute(&mut self) -> ComputeResult {
+        check_step!(self, CycleStep::Compute);
+        let res = match &mut self.inner {
+            NodeType::Broken => CycleStepResult::NotProgrammed,
+            NodeType::Compute(n) => n.compute(),
+            NodeType::Input(_) | NodeType::Output(_) => CycleStepResult::Done,
+        };
+        advance_step!(self, res, CycleStep::Write);
+        res
+    }
+
+    fn write(&mut self) -> WriteResult {
+        check_step!(self, CycleStep::Write);
+        if let Some((port, value)) = self.pending_output {
+            return CycleStepResult::IO((port, value));
+        }
+
+        let res = match &mut self.inner {
+            NodeType::Broken => CycleStepResult::NotProgrammed,
+            NodeType::Compute(n) => n.write(),
+            NodeType::Input(n) => {
+                n.write()
+                    .map(CycleStepResult::IO)
+                    .unwrap_or(CycleStepResult::Done)
+            }
+            NodeType::Output(_) => CycleStepResult::Done,
+        };
+        advance_step!(self, res, CycleStep::Advance);
+        res
+    }
+
+    fn advance(&mut self) -> AdvanceResult {
+        check_step!(self, CycleStep::Advance);
+        let res = match &mut self.inner {
+            NodeType::Broken => CycleStepResult::NotProgrammed,
+            NodeType::Compute(n) => n.advance(),
+            NodeType::Input(_) | NodeType::Output(_) => CycleStepResult::Done,
+        };
+        advance_step!(self, res, CycleStep::Read);
+        res
+    }
 }
 
 // TODO: move to another file
@@ -256,12 +399,12 @@ impl InputNode {
         }
     }
 
-    pub fn step(&mut self) -> NodeStepResult {
+    pub fn write(&mut self) -> Option<(Port, i32)> {
         if self.pos < self.values.len() {
             self.pos += 1;
-            NodeStepResult::WriteTo(Port::ANY, self.values[self.pos - 1])
+            Some((Port::ANY, self.values[self.pos - 1]))
         } else {
-            NodeStepResult::Idle
+            None
         }
     }
 }
@@ -282,19 +425,21 @@ impl OutputNode {
         }
     }
 
-    pub fn step(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> NodeStepResult {
+    pub fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> Option<Port> {
         let state = self.do_verify(&mut avail_reads.get_mut(0));
         self.verified = state;
         match state {
-            VerifyState::Blocked | VerifyState::Okay => NodeStepResult::ReadFrom(Port::ANY),
-            VerifyState::Finished | VerifyState::Failed => NodeStepResult::Idle,
+            VerifyState::Okay => None,
+            VerifyState::Blocked => Some(Port::ANY),
+            VerifyState::Finished | VerifyState::Failed => None,
         }
     }
 
     pub fn do_verify(&mut self, avail_read: &mut Option<&mut (Port, Option<i32>)>) -> VerifyState {
         if self.pos < self.values.len() {
             if let Some((_port, val)) = avail_read {
-                if val.take() == Some(self.values[self.pos]) {
+                let received = val.take();
+                if received == Some(self.values[self.pos]) {
                     self.pos += 1;
                     if self.pos == self.values.len() {
                         VerifyState::Finished
@@ -302,6 +447,22 @@ impl OutputNode {
                         VerifyState::Okay
                     }
                 } else {
+                    println!("wrong input");
+                    for n in &self.values {
+                        print!("{} ", n);
+                    }
+                    println!();
+                    for (idx, n) in self.values.iter().enumerate() {
+                        if idx == self.pos {
+                            println!("^");
+                        } else {
+                            for _ in 0 .. format!("{} ", n).len() {
+                                print!(" ");
+                            }
+                        }
+                    }
+                    println!();
+                    println!("got {} instead", received.unwrap());
                     VerifyState::Failed
                 }
             } else {

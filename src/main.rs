@@ -93,10 +93,10 @@ fn main() {
     }
     println!("{:#?}", grid);
 
-    let mut cycle = 0;
+    let mut cycle = 1;
     loop {
         println!("--- start of cycle {} ---", cycle);
-        grid.step_all();
+        grid.step();
         cycle += 1;
     }
 }

@@ -1,3 +1,5 @@
+#![feature(never_type)]
+
 #[macro_use] extern crate maplit;
 #[macro_use] extern crate nom;
 extern crate rand;

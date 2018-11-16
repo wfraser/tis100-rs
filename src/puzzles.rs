@@ -64,7 +64,9 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
         }
         "00150" => {
             let r1 = random_vec(&mut rng, input_size, 10, 100);
+            //let r1 = vec![51,62,16,83,61,14,35];
             let r2 = random_vec(&mut rng, input_size, 10, 100);
+            //let r2 = vec![68,59,59,49,82,16,45];
             Puzzle {
                 name: "Self-Test Diagnostic",
                 bad_nodes: &[NodeId(1), NodeId(5), NodeId(7), NodeId(9)],
