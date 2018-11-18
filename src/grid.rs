@@ -73,7 +73,7 @@ impl ComputeGrid {
     }
 
     pub fn read(&mut self) {
-        println!("- read step -");
+        //println!("- read step -");
 
         macro_rules! get_neighbor {
             ($idx:expr, $port:expr) => {
@@ -141,7 +141,7 @@ impl ComputeGrid {
             // Step the node!
 
             let result = self.nodes[idx].read(avail_reads.as_mut_slice());
-            println!("node {}: {:?}", idx, result);
+            //println!("node {}: {:?}", idx, result);
 
             for (port, val) in &avail_reads {
                 if val.is_none() {
@@ -163,7 +163,7 @@ impl ComputeGrid {
             }
 
             let result = node.read(avail_reads.as_mut_slice());
-            println!("{} port result: {:?}", node.type_name(), result);
+            //println!("{} port result: {:?}", node.type_name(), result);
 
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
@@ -175,10 +175,10 @@ impl ComputeGrid {
     }
 
     fn compute(&mut self) {
-        println!("- compute step -");
+        //println!("- compute step -");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].compute();
-            println!("node {}: {:?}", idx, result);
+            //println!("node {}: {:?}", idx, result);
         }
         for node in self.external.values_mut() {
             node.compute();
@@ -186,27 +186,137 @@ impl ComputeGrid {
     }
 
     fn write(&mut self) {
-        println!("- write step -");
+        //println!("- write step -");
 
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].write();
-            println!("node {}: {:?}", idx, result);
+            //println!("node {}: {:?}", idx, result);
         }
 
         for node in self.external.values_mut() {
             let result = node.write();
-            println!("{} port result: {:?}", node.type_name(), result);
+            //println!("{} port result: {:?}", node.type_name(), result);
         }
     }
 
     fn advance(&mut self) {
-        println!("- advance step -");
+        //!("- advance step -");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].advance();
-            println!("node {}: {:?}", idx, result);
+            //println!("node {}: {:?}", idx, result);
         }
         for node in self.external.values_mut() {
             node.advance();
+        }
+    }
+
+    pub fn print(&self) {
+        macro_rules! p {
+            ($idx:expr, inst $i:expr) => {
+                if let NodeType::Compute(c) = &self.nodes[$idx].inner {
+                    if let Some(inst) = c.instructions.get($i) {
+                        if c.pc == $i {
+                            print!(">");
+                        } else {
+                            print!(" ");
+                        }
+                        print!("{:16}", inst);
+                    } else {
+                        print!(" {:16}", "");
+                    }
+                } else {
+                    print!(" {:16}", "");
+                }
+                std::io::Write::flush(&mut std::io::stdout()).unwrap();
+            };
+            ($idx:expr, reg $r:ident) => {
+                if let NodeType::Compute(c) = &self.nodes[$idx].inner {
+                    print!("{:3} {:<5?}", stringify!($r), c.$r);
+                } else {
+                    print!("{:3} {:<5}", "", "")
+                }
+            };
+            ($idx:expr, step) => {
+                let node = &self.nodes[$idx];
+                if let NodeType::Compute(_) = &node.inner {
+                    print!("{:9}", node.step);
+                } else {
+                    print!("{:9}", "");
+                }
+            };
+            ($idx:expr, pending_output) => {
+                let node = &self.nodes[$idx];
+                if let NodeType::Compute(_) = &node.inner {
+                    if let Some((port, val)) = &node.pending_output {
+                        print!("{:5} {:<3}", port, val);
+                    } else {
+                        print!("{:9}", "");
+                    }
+                } else {
+                    print!("{:9}", "");
+                }
+            }
+        }
+
+        println!("|>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |");
+        println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+
+        for (start, end) in [(0,3), (4,7), (8,11)].iter().cloned() {
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 0);
+                print!(" | ");
+                p!(idx, reg acc);
+                print!(" |  ");
+            }
+            println!();
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 1);
+                print!(" | ");
+                p!(idx, reg bak);
+                print!(" |  ");
+            }
+            println!();
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 2);
+                print!(" | ");
+                p!(idx, reg last);
+                print!(" |  ");
+            }
+            println!();
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 3);
+                print!(" | ");
+                p!(idx, step);
+                print!(" |  ");
+            }
+            println!();
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 4);
+                print!(" | ");
+                p!(idx, pending_output);
+                print!(" |  ");
+            }
+            println!();
+            for i in 5 ..= 14 {
+                for idx in start ..= end {
+                    print!("|");
+                    p!(idx, inst i);
+                    print!(" | ");
+                    print!("{:9}", "");
+                    print!(" |  ");
+                }
+                println!();
+            }
+            println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+            println!();
+            if end != 11 {
+                println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+            }
         }
     }
 }

@@ -5,13 +5,13 @@ use std::collections::HashMap;
 
 #[derive(Debug)]
 pub struct ComputeNode {
-    instructions: Vec<Instruction>,
-    labels: HashMap<String, usize>,
-    acc: i32,
-    bak: i32,
-    pc: usize,
-    last: Port,
-    read_result: Option<i32>,
+    pub instructions: Vec<Instruction>,
+    pub labels: HashMap<String, usize>,
+    pub acc: i32,
+    pub bak: i32,
+    pub pc: usize,
+    pub last: Port,
+    pub read_result: Option<i32>,
 }
 
 #[derive(Debug)]

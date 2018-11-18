@@ -97,6 +97,7 @@ fn main() {
     loop {
         println!("--- start of cycle {} ---", cycle);
         grid.step();
+        grid.print();
         cycle += 1;
     }
 }

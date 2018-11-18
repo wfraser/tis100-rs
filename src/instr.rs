@@ -1,6 +1,14 @@
+use std::fmt::{self, Display, Formatter};
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Port {
     UP, DOWN, LEFT, RIGHT, ANY, LAST,
+}
+
+impl Display for Port {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.pad(&format!("{:?}", self))
+    }
 }
 
 impl Port {
@@ -28,10 +36,29 @@ pub enum Src {
     Immediate(i16),
 }
 
+impl Display for Src {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Src::Register(r) => write!(f, "{:?}", r),
+            Src::Port(p) => write!(f, "{:?}", p),
+            Src::Immediate(n) => write!(f, "{}", n),
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Dst {
     Register(Register),
     Port(Port),
+}
+
+impl Display for Dst {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            Dst::Register(r) => write!(f, "{:?}", r),
+            Dst::Port(p) => write!(f, "{:?}", p),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -49,6 +76,25 @@ pub enum Instruction {
     JGZ(String),
     JLZ(String),
     JRO(Src),
+}
+
+impl Display for Instruction {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.pad(&match self {
+            Instruction::NOP | Instruction::SWP | Instruction::SAV | Instruction::NEG => {
+                format!("{:?}", self)
+            }
+            Instruction::MOV(src, dst) => format!("MOV {}, {}", src, dst),
+            Instruction::ADD(src) => format!("ADD {}", src),
+            Instruction::SUB(src) => format!("SUB {}", src),
+            Instruction::JMP(l) => format!("JMP {}", l),
+            Instruction::JEZ(l) => format!("JEZ {}", l),
+            Instruction::JNZ(l) => format!("JNZ {}", l),
+            Instruction::JGZ(l) => format!("JGZ {}", l),
+            Instruction::JLZ(l) => format!("JLZ {}", l),
+            Instruction::JRO(s) => format!("JRO {}", s),
+        })
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -4,9 +4,9 @@ use crate::io::{InputNode, OutputNode, VerifyState};
 
 #[derive(Debug)]
 pub struct Node {
-    inner: NodeType,
-    step: CycleStep,
-    pending_output: Option<(Port, i32)>, // port is relative to this node
+    pub inner: NodeType,
+    pub step: CycleStep,
+    pub pending_output: Option<(Port, i32)>, // port is relative to this node
 }
 
 #[derive(Debug)]
@@ -20,6 +20,17 @@ pub enum NodeType {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub enum CycleStep {
     Read, Compute, Write, Advance,
+}
+
+impl std::fmt::Display for CycleStep {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.pad(match self {
+            CycleStep::Read => "READ",
+            CycleStep::Compute => "COMP",
+            CycleStep::Write => "WRTE",
+            CycleStep::Advance => "ADVN",
+        })
+    }
 }
 
 #[derive(Debug)]
