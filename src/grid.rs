@@ -270,8 +270,7 @@ impl ComputeGrid {
             };
         }
 
-        //println!("|>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |");
-        println!("|>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |");
+        //       "|>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |");
         println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
 
         for (start, end) in [(0,3), (4,7), (8,11)].iter().cloned() {
@@ -280,104 +279,52 @@ impl ComputeGrid {
                     if $idx != end { print!(" |  "); } else { println!(" |"); }
                 }
             }
-            macro_rules! sep {
-                ($idx:expr) => {
-                    if $idx != end { print!(" |-------|  "); } else { println!(" |-------|"); }
-                }
+            macro_rules! block {
+                ($iidx:expr, text $text:expr) => {
+                    for idx in start ..= end {
+                        print!("|");
+                        p!(idx, inst $iidx);
+                        print!(" | {:5}", $text);
+                        endln!(idx);
+                    }
+                };
+                ($iidx:expr, sep) => {
+                    for idx in start ..= end {
+                        print!("|");
+                        p!(idx, inst $iidx);
+                        if idx != end {
+                            print!(" |-------|  ");
+                        } else {
+                            println!(" |-------|");
+                        }
+                    }
+                };
+                ($iidx:expr, $($stuff:tt)*) => {
+                    for idx in start ..= end {
+                        print!("|");
+                        p!(idx, inst $iidx);
+                        print!(" | ");
+                        p!(idx, $($stuff)*);
+                        endln!(idx);
+                    }
+                };
             }
 
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 0);
-                print!(" |  ACC ");
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 1);
-                print!(" | ");
-                p!(idx, reg acc);
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 2);
-                sep!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 3);
-                print!(" |  BAK ");
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 4);
-                print!(" | ");
-                p!(idx, reg bak);
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 5);
-                sep!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 6);
-                print!(" | LAST ");
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 7);
-                print!(" | ");
-                p!(idx, reg last);
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 8);
-                sep!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 9);
-                print!(" | MODE ");
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 10);
-                print!(" | ");
-                p!(idx, step);
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 11);
-                sep!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 12);
-                print!(" | PENDG");
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 13);
-                print!(" | ");
-                p!(idx, pending port);
-                endln!(idx);
-            }
-            for idx in start ..= end {
-                print!("|");
-                p!(idx, inst 14);
-                print!(" | ");
-                p!(idx, pending value);
-                endln!(idx);
-            }
+            block!( 0, text " ACC ");
+            block!( 1, reg acc);
+            block!( 2, sep);
+            block!( 3, text " BAK ");
+            block!( 4, reg bak);
+            block!( 5, sep);
+            block!( 6, text "LAST ");
+            block!( 7, reg last);
+            block!( 8, sep);
+            block!( 9, text "MODE ");
+            block!(10, step);
+            block!(11, sep);
+            block!(12, text "PENDG");
+            block!(13, pending port);
+            block!(14, pending value);
             println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
             println!();
             if end != 11 {
