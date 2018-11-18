@@ -231,91 +231,157 @@ impl ComputeGrid {
             };
             ($idx:expr, reg $r:ident) => {
                 if let NodeType::Compute(c) = &self.nodes[$idx].inner {
-                    print!("{:3} {:<5?}", stringify!($r), c.$r);
+                    print!("{:5}", c.$r);
                 } else {
-                    print!("{:3} {:<5}", "", "")
+                    print!("{:5}", "");
                 }
             };
             ($idx:expr, step) => {
                 let node = &self.nodes[$idx];
                 if let NodeType::Compute(_) = &node.inner {
-                    print!("{:9}", node.step);
+                    print!("{:5}", node.step);
                 } else {
-                    print!("{:9}", "");
+                    print!("{:5}", "");
                 }
             };
-            ($idx:expr, pending_output) => {
+            ($idx:expr, pending port) => {
                 let node = &self.nodes[$idx];
                 if let NodeType::Compute(_) = &node.inner {
-                    if let Some((port, val)) = &node.pending_output {
-                        print!("{:5} {:<3}", port, val);
+                    if let Some((port, _val)) = &node.pending_output {
+                        print!("{:5}", port);
                     } else {
-                        print!("{:9}", "");
+                        print!("{:5}", "");
                     }
                 } else {
-                    print!("{:9}", "");
+                    print!("{:5}", "");
                 }
-            }
+            };
+            ($idx:expr, pending value) => {
+                let node = &self.nodes[$idx];
+                if let NodeType::Compute(_) = &node.inner {
+                    if let Some((_port, val)) = &node.pending_output {
+                        print!("{:5}", val);
+                    } else {
+                        print!("{:5}", "");
+                    }
+                } else {
+                    print!("{:5}", "");
+                }
+            };
         }
 
-        println!("|>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |");
-        println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+        //println!("|>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |  |>MOV RIGHT, RIGHT | last DOWN |");
+        println!("|>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |  |>MOV RIGHT, RIGHT | RIGHT |");
+        println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
 
         for (start, end) in [(0,3), (4,7), (8,11)].iter().cloned() {
+            macro_rules! endln {
+                ($idx:expr) => {
+                    if $idx != end { print!(" |  "); } else { println!(" |"); }
+                }
+            }
+            macro_rules! sep {
+                ($idx:expr) => {
+                    if $idx != end { print!(" |-------|  "); } else { println!(" |-------|"); }
+                }
+            }
+
             for idx in start ..= end {
                 print!("|");
                 p!(idx, inst 0);
-                print!(" | ");
-                p!(idx, reg acc);
-                print!(" |  ");
+                print!(" |  ACC ");
+                endln!(idx);
             }
-            println!();
             for idx in start ..= end {
                 print!("|");
                 p!(idx, inst 1);
                 print!(" | ");
-                p!(idx, reg bak);
-                print!(" |  ");
+                p!(idx, reg acc);
+                endln!(idx);
             }
-            println!();
             for idx in start ..= end {
                 print!("|");
                 p!(idx, inst 2);
-                print!(" | ");
-                p!(idx, reg last);
-                print!(" |  ");
+                sep!(idx);
             }
-            println!();
             for idx in start ..= end {
                 print!("|");
                 p!(idx, inst 3);
-                print!(" | ");
-                p!(idx, step);
-                print!(" |  ");
+                print!(" |  BAK ");
+                endln!(idx);
             }
-            println!();
             for idx in start ..= end {
                 print!("|");
                 p!(idx, inst 4);
                 print!(" | ");
-                p!(idx, pending_output);
-                print!(" |  ");
+                p!(idx, reg bak);
+                endln!(idx);
             }
-            println!();
-            for i in 5 ..= 14 {
-                for idx in start ..= end {
-                    print!("|");
-                    p!(idx, inst i);
-                    print!(" | ");
-                    print!("{:9}", "");
-                    print!(" |  ");
-                }
-                println!();
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 5);
+                sep!(idx);
             }
-            println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 6);
+                print!(" | LAST ");
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 7);
+                print!(" | ");
+                p!(idx, reg last);
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 8);
+                sep!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 9);
+                print!(" | MODE ");
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 10);
+                print!(" | ");
+                p!(idx, step);
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 11);
+                sep!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 12);
+                print!(" | PENDG");
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 13);
+                print!(" | ");
+                p!(idx, pending port);
+                endln!(idx);
+            }
+            for idx in start ..= end {
+                print!("|");
+                p!(idx, inst 14);
+                print!(" | ");
+                p!(idx, pending value);
+                endln!(idx);
+            }
+            println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
             println!();
             if end != 11 {
-                println!("+------------------+-----------+  +------------------+-----------+  +------------------+-----------+  +------------------+-----------+");
+                println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
             }
         }
     }
