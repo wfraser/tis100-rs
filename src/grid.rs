@@ -71,73 +71,69 @@ impl ComputeGrid {
         }
     }
 
-    pub fn read(&mut self) {
-        info!("begin READ step");
-
-        macro_rules! get_neighbor {
-            ($idx:expr, $port:expr) => {
-                if let Some(node) = self.external.get_mut(&($idx, $port)) {
-                    Some((node, None))
-                } else {
-                    match $port {
-                        Port::UP => {
-                            if $idx >= self.width {
-                                let n = $idx - self.width;
-                                Some((&mut self.nodes[n], Some(n)))
-                            } else {
-                                None
-                            }
-                        }
-                        Port::LEFT => {
-                            if $idx > 0 {
-                                let n = $idx - 1;
-                                Some((&mut self.nodes[n], Some(n)))
-                            } else {
-                                None
-                            }
-                        }
-                        Port::RIGHT => {
-                            if $idx < self.nodes.len() - 1 {
-                                let n = $idx + 1;
-                                Some((&mut self.nodes[n], Some(n)))
-                            } else {
-                                None
-                            }
-                        }
-                        Port::DOWN => {
-                            let n = $idx + self.width;
-                            if n < self.nodes.len() {
-                                Some((&mut self.nodes[n], Some(n)))
-                            } else {
-                                None
-                            }
-                        }
-                        _ => panic!("can't get neighbor {:?} ya dingus", $port)
+    fn get_neighbor(&mut self, idx: usize, port: Port) -> Option<(&mut Node, Option<usize>)> {
+        if let Some(node) = self.external.get_mut(&(idx, port)) {
+            Some((node, None))
+        } else {
+            match port {
+                Port::UP => {
+                    if idx >= self.width {
+                        let n = idx - self.width;
+                        Some((&mut self.nodes[n], Some(n)))
+                    } else {
+                        None
                     }
                 }
+                Port::LEFT => {
+                    if idx > 0 {
+                        let n = idx - 1;
+                        Some((&mut self.nodes[n], Some(n)))
+                    } else {
+                        None
+                    }
+                }
+                Port::RIGHT => {
+                    if idx < self.nodes.len() - 1 {
+                        let n = idx + 1;
+                        Some((&mut self.nodes[n], Some(n)))
+                    } else {
+                        None
+                    }
+                }
+                Port::DOWN => {
+                    let n = idx + self.width;
+                    if n < self.nodes.len() {
+                        Some((&mut self.nodes[n], Some(n)))
+                    } else {
+                        None
+                    }
+                }
+                _ => panic!("can't get neighbor {:?} ya dingus", port)
             }
         }
+    }
+
+    pub fn read(&mut self) {
+        info!("begin READ step");
 
         for idx in 0 .. self.nodes.len() {
             // get readable values from neighbors
             let mut avail_reads = vec![];
 
-            macro_rules! add_value_from {
-                ($attached_port:expr) => {
-                    if let Some((node, _idx)) = get_neighbor!(idx, $attached_port) {
-                        if let Some((port, val)) = node.pending_output() {
-                            if port == $attached_port.opposite() || port == Port::ANY {
-                                avail_reads.push(($attached_port, Some(val)));
-                            }
+            let mut add_value_from = |attached_port: Port| {
+                if let Some((node, _idx)) = self.get_neighbor(idx, attached_port) {
+                    if let Some((port, val)) = node.pending_output() {
+                        if port == attached_port.opposite() || port == Port::ANY {
+                            avail_reads.push((attached_port, Some(val)));
                         }
                     }
                 }
-            }
+            };
 
-            add_value_from!(Port::UP);
-            add_value_from!(Port::LEFT);
-            add_value_from!(Port::RIGHT);
-            add_value_from!(Port::DOWN);
+            add_value_from(Port::UP);
+            add_value_from(Port::LEFT);
+            add_value_from(Port::RIGHT);
+            add_value_from(Port::DOWN);
 
             // Step the node!
 
@@ -149,7 +145,7 @@ impl ComputeGrid {
                 if val.is_none() {
                     // the value was taken
                     // FIXME: this usage of port is dubious: what if it is ANY?
-                    let (node, idx) = get_neighbor!(idx, *port).unwrap();
+                    let (node, idx) = self.get_neighbor(idx, *port).unwrap();
                     if let Some(idx) = idx {
                         debug!("completing write for node {}", idx);
                     } else {
@@ -223,24 +219,25 @@ impl ComputeGrid {
     }
 
     pub fn print(&self) {
-        macro_rules! p {
-            ($idx:expr, inst $i:expr) => {
-                if let NodeType::Compute(c) = &self.nodes[$idx].inner {
-                    if let Some(inst) = c.instructions.get($i) {
-                        if c.pc == $i {
-                            print!(">");
-                        } else {
-                            print!(" ");
-                        }
-                        print!("{:16}", inst);
+        let p_inst = |idx: usize, i: usize| {
+            if let NodeType::Compute(c) = &self.nodes[idx].inner {
+                if let Some(inst) = c.instructions.get(i) {
+                    if c.pc == i {
+                        print!(">");
                     } else {
-                        print!(" {:16}", "");
+                        print!(" ");
                     }
+                    print!("{:16}", inst);
                 } else {
                     print!(" {:16}", "");
                 }
-                std::io::Write::flush(&mut std::io::stdout()).unwrap();
-            };
+            } else {
+                print!(" {:16}", "");
+            }
+            std::io::Write::flush(&mut std::io::stdout()).unwrap();
+        };
+
+        macro_rules! p {
             ($idx:expr, reg $r:ident) => {
                 if let NodeType::Compute(c) = &self.nodes[$idx].inner {
                     print!("{:5}", c.$r);
@@ -286,57 +283,60 @@ impl ComputeGrid {
         println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
 
         for (start, end) in [(0,3), (4,7), (8,11)].iter().cloned() {
-            macro_rules! endln {
-                ($idx:expr) => {
-                    if $idx != end { print!(" |  "); } else { println!(" |"); }
+            let endln = |idx| {
+                if idx != end {
+                    print!(" |  ");
+                } else {
+                    println!(" |");
                 }
-            }
-            macro_rules! block {
-                ($iidx:expr, text $text:expr) => {
-                    for idx in start ..= end {
-                        print!("|");
-                        p!(idx, inst $iidx);
-                        print!(" | {:5}", $text);
-                        endln!(idx);
+            };
+            let block_text = |iidx, text| {
+                for idx in start ..= end {
+                    print!("|");
+                    p_inst(idx, iidx);
+                    print!(" | {:5}", text);
+                    endln(idx);
+                }
+            };
+            let block_sep = |iidx| {
+                for idx in start ..= end {
+                    print!("|");
+                    p_inst(idx, iidx);
+                    if idx != end {
+                        print!(" |-------|  ");
+                    } else {
+                        println!(" |-------|");
                     }
-                };
-                ($iidx:expr, sep) => {
-                    for idx in start ..= end {
-                        print!("|");
-                        p!(idx, inst $iidx);
-                        if idx != end {
-                            print!(" |-------|  ");
-                        } else {
-                            println!(" |-------|");
-                        }
-                    }
-                };
+                }
+            };
+
+            macro_rules! block_info {
                 ($iidx:expr, $($stuff:tt)*) => {
                     for idx in start ..= end {
                         print!("|");
-                        p!(idx, inst $iidx);
+                        p_inst(idx, $iidx);
                         print!(" | ");
                         p!(idx, $($stuff)*);
-                        endln!(idx);
+                        endln(idx);
                     }
                 };
             }
 
-            block!( 0, text " ACC ");
-            block!( 1, reg acc);
-            block!( 2, sep);
-            block!( 3, text " BAK ");
-            block!( 4, reg bak);
-            block!( 5, sep);
-            block!( 6, text "LAST ");
-            block!( 7, reg last);
-            block!( 8, sep);
-            block!( 9, text "MODE ");
-            block!(10, step);
-            block!(11, sep);
-            block!(12, text "PENDG");
-            block!(13, pending port);
-            block!(14, pending value);
+            block_text(  0, " ACC ");
+            block_info!( 1, reg acc);
+            block_sep(   2);
+            block_text(  3," BAK ");
+            block_info!( 4, reg bak);
+            block_sep(   5);
+            block_text(  6, "LAST ");
+            block_info!( 7, reg last);
+            block_sep(   8);
+            block_text(  9, "MODE ");
+            block_info!(10, step);
+            block_sep(  11);
+            block_text( 12, "PENDG");
+            block_info!(13, pending port);
+            block_info!(14, pending value);
             println!("+------------------+-------+  +------------------+-------+  +------------------+-------+  +------------------+-------+");
             println!();
             if end != 11 {
