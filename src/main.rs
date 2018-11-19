@@ -1,5 +1,7 @@
 extern crate tis100;
 
+extern crate stderrlog;
+
 use std::fs::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -31,6 +33,11 @@ fn puzzle_num(path: &Path) -> String {
 }
 
 fn main() {
+    stderrlog::new()
+        .verbosity(4)
+        .init()
+        .unwrap();
+
     let path = match std::env::args_os().nth(1) {
         Some(s) => PathBuf::from(s),
         None => {
@@ -57,7 +64,6 @@ fn main() {
 
     let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
     let p = tis100::puzzles::get_puzzle(&puzzle_num, 39, r).unwrap();
-    println!("{:?}", p);
 
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
 
@@ -79,7 +85,7 @@ fn main() {
                 loop {
                     let programmed = grid.program_node(id.0 as usize + offset, &mut asm_iter);
                     if programmed {
-                        println!("programmed node {}", id.0 as usize + offset);
+                        println!("\tprogrammed node {}", id.0 as usize + offset);
                         break;
                     } else {
                         offset += 1;
@@ -91,13 +97,12 @@ fn main() {
             println!("parse error: {:?}", e);
         }
     }
-    println!("{:#?}", grid);
 
     let mut cycle = 1;
     loop {
         println!("--- start of cycle {} ---", cycle);
         grid.step();
-        grid.print();
+        //grid.print();
         cycle += 1;
     }
 }

@@ -72,38 +72,42 @@ impl ComputeGrid {
     }
 
     pub fn read(&mut self) {
-        //println!("- read step -");
+        info!("begin READ step");
 
         macro_rules! get_neighbor {
             ($idx:expr, $port:expr) => {
                 if let Some(node) = self.external.get_mut(&($idx, $port)) {
-                    Some(node)
+                    Some((node, None))
                 } else {
                     match $port {
                         Port::UP => {
                             if $idx >= self.width {
-                                Some(&mut self.nodes[$idx - self.width])
+                                let n = $idx - self.width;
+                                Some((&mut self.nodes[n], Some(n)))
                             } else {
                                 None
                             }
                         }
                         Port::LEFT => {
                             if $idx > 0 {
-                                Some(&mut self.nodes[$idx - 1])
+                                let n = $idx - 1;
+                                Some((&mut self.nodes[n], Some(n)))
                             } else {
                                 None
                             }
                         }
                         Port::RIGHT => {
                             if $idx < self.nodes.len() - 1 {
-                                Some(&mut self.nodes[$idx + 1])
+                                let n = $idx + 1;
+                                Some((&mut self.nodes[n], Some(n)))
                             } else {
                                 None
                             }
                         }
                         Port::DOWN => {
-                            if $idx + self.width < self.nodes.len() {
-                                Some(&mut self.nodes[$idx + self.width])
+                            let n = $idx + self.width;
+                            if n < self.nodes.len() {
+                                Some((&mut self.nodes[n], Some(n)))
                             } else {
                                 None
                             }
@@ -115,14 +119,12 @@ impl ComputeGrid {
         }
 
         for idx in 0 .. self.nodes.len() {
-
             // get readable values from neighbors
-
             let mut avail_reads = vec![];
 
             macro_rules! add_value_from {
                 ($attached_port:expr) => {
-                    if let Some(node) = get_neighbor!(idx, $attached_port) {
+                    if let Some((node, _idx)) = get_neighbor!(idx, $attached_port) {
                         if let Some((port, val)) = node.pending_output() {
                             if port == $attached_port.opposite() || port == Port::ANY {
                                 avail_reads.push(($attached_port, Some(val)));
@@ -139,14 +141,21 @@ impl ComputeGrid {
 
             // Step the node!
 
+            debug!("node {}", idx);
             let result = self.nodes[idx].read(avail_reads.as_mut_slice());
-            //println!("node {}: {:?}", idx, result);
+            debug!("  result: {:?}", result);
 
             for (port, val) in &avail_reads {
                 if val.is_none() {
                     // the value was taken
                     // FIXME: this usage of port is dubious: what if it is ANY?
-                    get_neighbor!(idx, *port).unwrap().complete_write(*port);
+                    let (node, idx) = get_neighbor!(idx, *port).unwrap();
+                    if let Some(idx) = idx {
+                        debug!("completing write for node {}", idx);
+                    } else {
+                        debug!("completing write for {} node", node.type_name());
+                    }
+                    node.complete_write(*port);
                 }
             }
         }
@@ -161,12 +170,14 @@ impl ComputeGrid {
                 }
             }
 
+            debug!("{} port", node.type_name());
             let result = node.read(avail_reads.as_mut_slice());
-            //println!("{} port result: {:?}", node.type_name(), result);
+            debug!("  result: {:?}", result);
 
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
                     // the value was taken
+                    debug!("completing write for node {}", idx);
                     self.nodes[*idx].complete_write(*rel_port);
                 }
             }
@@ -174,10 +185,10 @@ impl ComputeGrid {
     }
 
     fn compute(&mut self) {
-        //println!("- compute step -");
+        info!("begin COMPUTE step");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].compute();
-            //println!("node {}: {:?}", idx, result);
+            debug!("node {}: {:?}", idx, result);
         }
         for node in self.external.values_mut() {
             node.compute();
@@ -185,24 +196,26 @@ impl ComputeGrid {
     }
 
     fn write(&mut self) {
-        //println!("- write step -");
+        info!("begin WRITE step");
 
         for idx in 0 .. self.nodes.len() {
+            debug!("node {}", idx);
             let result = self.nodes[idx].write();
-            //println!("node {}: {:?}", idx, result);
+            debug!("  result: {:?}", result);
         }
 
         for node in self.external.values_mut() {
+            debug!("{} port", node.type_name());
             let result = node.write();
-            //println!("{} port result: {:?}", node.type_name(), result);
+            debug!("  result: {:?}", result);
         }
     }
 
     fn advance(&mut self) {
-        //!("- advance step -");
+        info!("begin ADVANCE step");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].advance();
-            //println!("node {}: {:?}", idx, result);
+            debug!("node {}: {:?}", idx, result);
         }
         for node in self.external.values_mut() {
             node.advance();

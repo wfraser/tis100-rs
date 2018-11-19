@@ -81,12 +81,18 @@ impl ComputeNode {
 
 impl NodeOps for ComputeNode {
     fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
-        let src = match get_instr!(self) {
+        let instr = get_instr!(self);
+        trace!("{}", instr);
+
+        let src = match instr {
             Instruction::MOV(src, _dst) => src,
             Instruction::ADD(src) => src,
             Instruction::SUB(src) => src,
             Instruction::JRO(src) => src,
-            _ => return StepResult::Done,
+            _ => {
+                trace!("no read needed");
+                return StepResult::Done;
+            }
         };
 
         self.read_result = Some(match src {
@@ -114,14 +120,19 @@ impl NodeOps for ComputeNode {
                     if self.last == Port::LAST {
                         panic!("attempted to read from unset LAST port!");
                     }
+                    trace!("LAST -> {}", self.last);
                     self.last
                 } else {
                     *port
                 };
 
                 match read(actual_port, avail_reads, &mut self.last) {
-                    Some(value) => value,
+                    Some(value) => {
+                        trace!("ready value from {}: {}", actual_port, value);
+                        value
+                    }
                     None => {
+                        trace!("waiting for {}", *port);
                         return StepResult::IO(*port);
                     }
                 }
@@ -158,7 +169,10 @@ impl NodeOps for ComputeNode {
     }
 
     fn write(&mut self) -> WriteResult {
-        if let Instruction::MOV(_src, dst) = get_instr!(self) {
+        let instr = get_instr!(self);
+        trace!("{}", instr);
+
+        if let Instruction::MOV(_src, dst) = instr {
             let val = self.read_result.unwrap();
             match dst {
                 Dst::Register(Register::ACC) => { self.acc = val; }

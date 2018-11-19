@@ -16,10 +16,13 @@ impl InputNode {
 
     pub fn write(&mut self) -> Option<(Port, i32)> {
         if self.pos < self.values.len() {
+            let value = self.values[self.pos];
+            trace!("writing {}", value);
             self.print();
             self.pos += 1;
-            Some((Port::ANY, self.values[self.pos - 1]))
+            Some((Port::ANY, value))
         } else {
+            trace!("no more values");
             None
         }
     }
@@ -68,26 +71,31 @@ impl OutputNode {
 
     pub fn do_verify(&mut self, avail_read: &mut Option<&mut (Port, Option<i32>)>) -> VerifyState {
         if self.pos < self.values.len() {
-            if let Some((_port, val)) = avail_read {
-                let received = val.take();
-                if received == Some(self.values[self.pos]) {
+            if let Some((port, val)) = avail_read {
+                let received = val.take().unwrap();
+                info!("checking value {} from {}", received, port);
+                if received == self.values[self.pos] {
                     self.pos += 1;
                     self.print();
                     if self.pos == self.values.len() {
+                        info!("finished now!");
                         VerifyState::Finished
                     } else {
+                        info!("value is correct");
                         VerifyState::Okay
                     }
                 } else {
                     println!("wrong input");
                     self.print();
-                    println!("got {} instead", received.unwrap());
+                    println!("got {} instead", received);
                     VerifyState::Failed
                 }
             } else {
+                trace!("waiting for input");
                 VerifyState::Blocked
             }
         } else {
+            trace!("finished");
             VerifyState::Finished
         }
     }
