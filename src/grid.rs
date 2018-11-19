@@ -1,4 +1,3 @@
-use crate::NodeId;
 use crate::compute::ComputeNode;
 use crate::instr::{Port, ProgramItem};
 use crate::io::{InputNode, OutputNode, VerifyState};
@@ -10,7 +9,7 @@ use std::collections::BTreeMap;
 #[derive(Debug)]
 pub struct ComputeGrid {
     nodes: Vec<Node>,
-    external: BTreeMap<(NodeId, Port), Node>,
+    external: BTreeMap<(usize, Port), Node>,
     width: usize,
     height: usize,
 }
@@ -19,7 +18,7 @@ impl ComputeGrid {
     pub fn from_puzzle(p: Puzzle) -> ComputeGrid {
         let mut nodes = Vec::with_capacity(PUZZLE_WIDTH * PUZZLE_HEIGHT);
         for idx in 0 .. PUZZLE_WIDTH * PUZZLE_HEIGHT {
-            let node = if p.bad_nodes.contains(&NodeId(idx as u8)) {
+            let node = if p.bad_nodes.contains(&idx) {
                 Node::new(NodeType::Broken)
             } else {
                 Node::new(NodeType::Compute(ComputeNode::new()))
@@ -77,7 +76,7 @@ impl ComputeGrid {
 
         macro_rules! get_neighbor {
             ($idx:expr, $port:expr) => {
-                if let Some(node) = self.external.get_mut(&(NodeId($idx as u8), $port)) {
+                if let Some(node) = self.external.get_mut(&($idx, $port)) {
                     Some(node)
                 } else {
                     match $port {
@@ -153,10 +152,10 @@ impl ComputeGrid {
         }
 
         // Now step the I/O nodes
-        for ((id, rel_port), ref mut node) in &mut self.external {
+        for ((idx, rel_port), ref mut node) in &mut self.external {
             let mut avail_reads = vec![];
 
-            if let Some((dest_port, value)) = self.nodes[id.0 as usize].pending_output() {
+            if let Some((dest_port, value)) = self.nodes[*idx].pending_output() {
                 if dest_port == Port::ANY || dest_port == *rel_port {
                     avail_reads.push((rel_port.opposite(), Some(value))); // port doesn't matter actually
                 }
@@ -168,7 +167,7 @@ impl ComputeGrid {
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
                     // the value was taken
-                    self.nodes[id.0 as usize].complete_write(*rel_port);
+                    self.nodes[*idx].complete_write(*rel_port);
                 }
             }
         }

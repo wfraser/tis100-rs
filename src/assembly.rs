@@ -1,7 +1,6 @@
 use std::collections::BTreeMap;
 use std::str::FromStr;
 
-use crate::NodeId;
 use crate::instr::*;
 
 type Input<'a> = nom::types::CompleteByteSlice<'a>;

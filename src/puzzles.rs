@@ -1,4 +1,3 @@
-use crate::NodeId;
 use crate::instr::Port;
 use rand::Rng;
 use std::collections::BTreeMap;
@@ -9,9 +8,9 @@ pub const PUZZLE_HEIGHT: usize = 3;
 #[derive(Debug)]
 pub struct Puzzle {
     pub name: &'static str,
-    pub bad_nodes: &'static [NodeId],
-    pub inputs: BTreeMap<(NodeId, Port), Vec<i32>>,
-    pub outputs: BTreeMap<(NodeId, Port), Vec<i32>>,
+    pub bad_nodes: &'static [usize],
+    pub inputs: BTreeMap<(usize, Port), Vec<i32>>,
+    pub outputs: BTreeMap<(usize, Port), Vec<i32>>,
 }
 
 //pub type InputGenerator = Fn(&mut dyn rand::Rng) -> i32;
@@ -55,10 +54,10 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
                 name: "[simulator debug] Connectivity Check",
                 bad_nodes: &[],
                 inputs: btreemap! {
-                    (NodeId(1), Port::UP) => vec![1,2,3,4],
+                    (1, Port::UP) => vec![1,2,3,4],
                 },
                 outputs: btreemap! {
-                    (NodeId(10), Port::DOWN) => vec![10,20,30,40],
+                    (10, Port::DOWN) => vec![10,20,30,40],
                 },
             }
         }
@@ -69,14 +68,14 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             //let r2 = vec![68,59,59,49,82,16,45];
             Puzzle {
                 name: "Self-Test Diagnostic",
-                bad_nodes: &[NodeId(1), NodeId(5), NodeId(7), NodeId(9)],
+                bad_nodes: &[1, 5, 7, 9],
                 inputs: btreemap! {
-                    (NodeId(0), Port::UP) => r1.clone(),
-                    (NodeId(3), Port::UP) => r2.clone(),
+                    (0, Port::UP) => r1.clone(),
+                    (3, Port::UP) => r2.clone(),
                 },
                 outputs: btreemap! {
-                    (NodeId(8), Port::DOWN) => r1,
-                    (NodeId(11), Port::DOWN) => r2,
+                    (8, Port::DOWN) => r1,
+                    (11, Port::DOWN) => r2,
                 },
             }
         }
@@ -109,13 +108,13 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
 
             Puzzle {
                 name: "Sequence Peak Detector",
-                bad_nodes: &[NodeId(7)],
+                bad_nodes: &[7],
                 inputs: btreemap! {
-                    (NodeId(1), Port::UP) => input,
+                    (1, Port::UP) => input,
                 },
                 outputs: btreemap! {
-                    (NodeId( 9), Port::DOWN) => output1,
-                    (NodeId(10), Port::DOWN) => output2,
+                    ( 9, Port::DOWN) => output1,
+                    (10, Port::DOWN) => output2,
                 },
             }
         },
