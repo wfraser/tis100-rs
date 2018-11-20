@@ -182,22 +182,34 @@ impl NodeOps for ComputeNode {
                         if self.last == Port::LAST {
                             panic!("attempted to write to unset LAST port");
                         }
+                        trace!("LAST -> {}", self.last);
                         self.last
                     } else {
                         *port
                     };
 
+                    trace!("writing {} to {}", val, actual_port);
                     return StepResult::IO((actual_port, val));
                 }
             }
             StepResult::Done
         } else {
+            trace!("no write needed");
             StepResult::Done
         }
     }
 
     fn advance(&mut self) -> AdvanceResult {
-        match get_instr!(self) {
+        let instr = get_instr!(self);
+
+        match instr {
+            Instruction::JRO(_) => (),
+            _ => {
+                self.pc += 1;
+            }
+        }
+
+        match instr {
             Instruction::JMP(label) => { self.pc = self.labels[label]; }
             Instruction::JEZ(label) => if self.acc == 0 { self.pc = self.labels[label]; }
             Instruction::JNZ(label) => if self.acc != 0 { self.pc = self.labels[label]; }
@@ -221,9 +233,7 @@ impl NodeOps for ComputeNode {
                     self.pc = self.instructions.len() - 1;
                 }
             }
-            _ => {
-                self.pc += 1;
-            }
+            _ => ()
         }
 
         if self.pc >= self.instructions.len() {
