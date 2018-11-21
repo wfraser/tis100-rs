@@ -1,64 +1,63 @@
 extern crate tis100;
 
+#[macro_use] extern crate log;
+extern crate structopt;
 extern crate stderrlog;
+
+use structopt::StructOpt;
 
 use std::fs::File;
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::exit;
 
-fn puzzle_num_arg() -> Option<String> {
-    std::env::args().nth(2)
-}
+#[derive(StructOpt, Debug)]
+struct Args {
+    #[structopt(short="d", long="debug")]
+    debug: bool,
 
-fn puzzle_num(path: &Path) -> String {
-    puzzle_num_arg()
-        .unwrap_or_else(|| {
-            path.file_name().unwrap()
-            .to_str().unwrap()
-            .split('.')
-            .next()
-            .and_then(|s| if s.chars().all(|c| c >= '0' && c <= '9') { Some(s.to_owned()) } else { None })
-            .unwrap_or_else(|| {
-                match puzzle_num_arg() {
-                    Some(n) => n,
-                    None => {
-                        eprintln!("Unable to figure out puzzle number from the file name.");
-                        eprintln!("Please provide a puzzle number as an extra command line argument.");
-                        exit(1);
-                    }
-                }
-            })
-        })
+    #[structopt(short="v", long="verbose", parse(from_occurrences))]
+    verbose: usize,
+
+    #[structopt(short="p", long="puzzle")]
+    puzzle_num: Option<String>,
+
+    #[structopt(parse(from_os_str))]
+    savefile_path: PathBuf,
 }
 
 fn main() {
+    let mut args = Args::from_args();
+    if args.debug {
+        if args.verbose != 0 {
+            eprintln!("warning: debug flag overrides verbose");
+        }
+        args.verbose = 4;
+    }
+    let puzzle_num = args.puzzle_num
+        .take()
+        .unwrap_or_else(||
+            args.savefile_path.file_name().unwrap()
+                .to_str().unwrap()
+                .split('.')
+                .next()
+                .unwrap()
+                .to_owned());
+
     stderrlog::new()
-        .verbosity(4)
+        .verbosity(args.verbose)
         .init()
         .unwrap();
 
-    let path = match std::env::args_os().nth(1) {
-        Some(s) => PathBuf::from(s),
-        None => {
-            eprintln!("Usage: {} <save file> [<puzzle number>]", std::env::args().nth(0).unwrap());
-            eprintln!(r"Look for saves under C:\Users\<you>\Documents\My Games\TIS-100\<random>\save");
-            exit(1);
-        }
-    };
-
-    let puzzle_num = puzzle_num(&path);
-    println!("puzzle number: {:?}", puzzle_num);
-
     let mut input = vec![];
-    File::open(&path)
+    File::open(&args.savefile_path)
         .unwrap_or_else(|e| {
-            eprintln!("Error opening {:?}: {}", path, e);
+            error!("Error opening {:?}: {}", args.savefile_path, e);
             exit(1);
         })
         .read_to_end(&mut input)
         .unwrap_or_else(|e| {
-            eprintln!("Read error on {:?}: {}", path, e);
+            error!("Read error on {:?}: {}", args.savefile_path, e);
             exit(1);
         });
 
@@ -67,25 +66,40 @@ fn main() {
 
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
 
+    let mut num_nodes = 0;
+    let mut num_instructions = 0;
     let mut offset = 0;
     match tis100::assembly::parse_save_file(nom::types::CompleteByteSlice(&input)) {
         Ok((remaining, nodes)) => {
             if !remaining.is_empty() {
-                println!("{} bytes unparsed at the end of input", remaining.len());
+                error!("{} bytes unparsed at the end of input", remaining.len());
                 exit(1);
             }
 
             for (id, asm) in nodes {
-                println!("Save file node {}:", id.0);
+                info!("Save file node {}:", id.0);
+
+                if !asm.is_empty() {
+                    num_nodes += 1;
+                    num_instructions += asm.iter()
+                        .filter(|item|
+                            if let tis100::instr::ProgramItem::Instruction(_) = item {
+                                true
+                            } else {
+                                false
+                            })
+                        .count();
+                }
+
                 for i in &asm {
-                    println!("\t{:?}", i);
+                    info!("\t{:?}", i);
                 }
 
                 let mut asm_iter = asm.into_iter();
                 loop {
                     let programmed = grid.program_node(id.0 as usize + offset, &mut asm_iter);
                     if programmed {
-                        println!("\tprogrammed node {}", id.0 as usize + offset);
+                        info!("\tprogrammed node {}", id.0 as usize + offset);
                         break;
                     } else {
                         offset += 1;
@@ -94,14 +108,30 @@ fn main() {
             }
         }
         Err(e) => {
-            println!("parse error: {:?}", e);
+            error!("parse error: {:?}", e);
         }
     }
 
+    println!("{} nodes programmed", num_nodes);
+    println!("{} total instructions", num_instructions);
+
     let mut cycle = 1;
     loop {
-        println!("--- start of cycle {} ---", cycle);
-        grid.step();
+        if args.verbose > 0 {
+            info!("--- start of cycle {} ---", cycle);
+        } else {
+            print!("\rcycle {}", cycle);
+        }
+        if let Some(correct) = grid.step() {
+            print!("\r");
+            if correct {
+                print!("correct");
+            } else {
+                print!("incorrect");
+            }
+            println!(" solution in {} cycles", cycle);
+            break;
+        }
         //grid.print();
         cycle += 1;
     }

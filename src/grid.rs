@@ -48,7 +48,7 @@ impl ComputeGrid {
         self.nodes[idx].program_node(program_items)
     }
 
-    pub fn step(&mut self) {
+    pub fn step(&mut self) -> Option<bool> {
         self.read();
         self.compute();
         self.write();
@@ -59,7 +59,7 @@ impl ComputeGrid {
             match node.verify_state() {
                 Some(VerifyState::Finished) => (),
                 Some(VerifyState::Failed) => {
-                    panic!("incorrect output");
+                    return Some(false);
                 }
                 Some(VerifyState::Blocked) | Some(VerifyState::Okay) => { all_verified = false; }
                 None => ()
@@ -67,7 +67,9 @@ impl ComputeGrid {
         }
 
         if all_verified {
-            panic!("done!");
+            Some(true)
+        } else {
+            None
         }
     }
 
@@ -114,7 +116,7 @@ impl ComputeGrid {
     }
 
     pub fn read(&mut self) {
-        info!("begin READ step");
+        debug!("begin READ step");
 
         for idx in 0 .. self.nodes.len() {
             // get readable values from neighbors
@@ -181,7 +183,7 @@ impl ComputeGrid {
     }
 
     fn compute(&mut self) {
-        info!("begin COMPUTE step");
+        debug!("begin COMPUTE step");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].compute();
             debug!("node {}: {:?}", idx, result);
@@ -192,7 +194,7 @@ impl ComputeGrid {
     }
 
     fn write(&mut self) {
-        info!("begin WRITE step");
+        debug!("begin WRITE step");
 
         for idx in 0 .. self.nodes.len() {
             debug!("node {}", idx);
@@ -208,7 +210,7 @@ impl ComputeGrid {
     }
 
     fn advance(&mut self) {
-        info!("begin ADVANCE step");
+        debug!("begin ADVANCE step");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].advance();
             debug!("node {}: {:?}", idx, result);

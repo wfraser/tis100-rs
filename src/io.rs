@@ -18,7 +18,7 @@ impl InputNode {
         if self.pos < self.values.len() {
             let value = self.values[self.pos];
             trace!("writing {}", value);
-            self.print();
+            info!("{}", self);
             self.pos += 1;
             Some((Port::ANY, value))
         } else {
@@ -26,16 +26,20 @@ impl InputNode {
             None
         }
     }
+}
 
-    fn print(&self) {
+impl std::fmt::Display for InputNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {
-                print!("<({})> ", n);
+                out += &format!("<({})> ", n);
             } else {
-                print!("{} ", n);
+                out += &format!("{} ", n);
             }
         }
-        println!();
+        out.pop();
+        f.pad(&out)
     }
 }
 
@@ -76,7 +80,7 @@ impl OutputNode {
                 info!("checking value {} from {}", received, port);
                 if received == self.values[self.pos] {
                     self.pos += 1;
-                    self.print();
+                    info!("{}", self);
                     if self.pos == self.values.len() {
                         info!("finished now!");
                         VerifyState::Finished
@@ -85,9 +89,9 @@ impl OutputNode {
                         VerifyState::Okay
                     }
                 } else {
-                    println!("wrong input");
-                    self.print();
-                    println!("got {} instead", received);
+                    error!("wrong input");
+                    error!("{}", self);
+                    error!("got {} instead", received);
                     VerifyState::Failed
                 }
             } else {
@@ -99,16 +103,20 @@ impl OutputNode {
             VerifyState::Finished
         }
     }
+}
 
-    fn print(&self) {
+impl std::fmt::Display for OutputNode {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {
-                print!("<({})> ", n);
+                out += &format!("<({})> ", n);
             } else {
-                print!("{} ", n);
+                out += &format!("{} ", n);
             }
         }
-        println!();
+        out.pop();
+        f.pad(&out)
     }
 }
 
