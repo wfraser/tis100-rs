@@ -79,6 +79,196 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
                 },
             }
         }
+        "10981" => {
+            let input = random_vec(&mut rng, input_size, 10, 100);
+            let output = input.iter().map(|n| n*2).collect();
+            Puzzle {
+                name: "Signal Amplifier",
+                bad_nodes: &[3, 8],
+                inputs:  btreemap! { ( 1, Port::UP) => input },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
+        "20176" => {
+            let input1 = random_vec(&mut rng, input_size, 10, 100);
+            let input2 = random_vec(&mut rng, input_size, 10, 100);
+            let (output1, output2) = input1.iter()
+                .zip(&input2)
+                .map(|(a, b)| (a - b, b - a))
+                .unzip();
+            Puzzle {
+                name: "Differential Converter",
+                bad_nodes: &[7],
+                inputs: btreemap! {
+                    (1, Port::UP) => input1,
+                    (2, Port::UP) => input2,
+                },
+                outputs: btreemap! {
+                    ( 9, Port::DOWN) => output1,
+                    (10, Port::DOWN) => output2,
+                },
+            }
+        }
+        "21340" => {
+            let b = |x| if x { 1 } else { 0 };
+            let input = random_vec(&mut rng, input_size, -2, 2);
+            let (mut output1, mut output2, mut output3) = (vec![], vec![], vec![]);
+            for n in &input {
+                output1.push(b(*n > 0));
+                output2.push(b(*n == 0));
+                output3.push(b(*n < 0));
+            }
+            Puzzle {
+                name: "Signal Comparator",
+                bad_nodes: &[5, 6, 7],
+                inputs: btreemap! { (0, Port::UP) => input },
+                outputs: btreemap! {
+                    ( 9, Port::DOWN) => output1,
+                    (10, Port::DOWN) => output2,
+                    (11, Port::DOWN) => output3,
+                },
+            }
+        }
+        "22280" => {
+            let input1 = random_vec(&mut rng, input_size, -30, 0);
+            let input2 = random_vec(&mut rng, input_size, -1, 1);
+            let input3 = random_vec(&mut rng, input_size, 0, 30);
+            let output = input1.iter()
+                .zip(&input3)
+                .zip(&input2)
+                .map(|((a, b), which)|
+                     match *which {
+                         -1 => *a,
+                          0 => a + b,
+                          1 => *b,
+                          _ => unreachable!()
+                    })
+                .collect();
+            Puzzle {
+                name: "Signal Multiplexer",
+                bad_nodes: &[8],
+                inputs: btreemap! {
+                    (1, Port::UP) => input1,
+                    (2, Port::UP) => input2,
+                    (3, Port::UP) => input3,
+                },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
+        "30647" => {
+            let input1 = random_vec(&mut rng, input_size / 3, 10, 100);
+            let input2 = random_vec(&mut rng, input_size / 3, 10, 100);
+            let mut output = vec![];
+            for (a, b) in input1.iter().zip(&input2) {
+                output.extend_from_slice(&[*a.min(b), *a.max(b), 0]);
+            }
+            Puzzle {
+                name: "Sequence Generator",
+                bad_nodes: &[9],
+                inputs: btreemap! {
+                    (1, Port::UP) => input1,
+                    (2, Port::UP) => input2,
+                },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
+        "31904" => {
+            let mut input = vec![];
+            let mut output1 = vec![];
+            let mut output2 = vec![];
+            let mut acc = 0;
+            let mut len = 0;
+            for (r, n) in random_vec(&mut rng, input_size, 0, 5).into_iter()
+                    .zip(random_vec(&mut rng, input_size, 10, 100).into_iter()) {
+                if r == 0 {
+                    input.push(0);
+                    output1.push(acc);
+                    output2.push(len);
+                    acc = 0;
+                    len = 0;
+                } else {
+                    input.push(n);
+                    acc += n;
+                    len += 1;
+                }
+            }
+            Puzzle {
+                name: "Squence Counter",
+                bad_nodes: &[3],
+                inputs: btreemap! { (1, Port::UP) => input },
+                outputs: btreemap! {
+                    ( 9, Port::DOWN) => output1,
+                    (10, Port::DOWN) => output2,
+                },
+            }
+        }
+        "32050" => {
+            let mut input = random_vec(&mut rng, input_size, -20, 40);
+            input[0] = 0; // alter the first to be zero
+            let mut output = vec![0];
+            output.extend(input.iter()
+                .zip(input.iter().skip(1))
+                .map(|(a, b)| if (a - b).abs() >= 10 { 1 } else { 0 }));
+            Puzzle {
+                name: "Signal Edge Detector",
+                bad_nodes: &[8],
+                inputs:  btreemap! { ( 1, Port::UP) => input },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
+        "33762" => {
+            let (inputs, output): (Vec<_>, Vec<_>) = random_vec(&mut rng, input_size, 0, 3)
+                .into_iter()
+                .scan([0i32, 0i32, 0i32, 0i32], |last, which| {
+                    let out = if last[which as usize] == 1 {
+                        last[which as usize] = 0;
+                        // output is 0 for a high->low transition
+                        0
+                    } else {
+                        last[which as usize] = 1;
+                        // output is the number of the input which went low->high
+                        which + 1
+                    };
+                    Some((*last, out))
+                })
+                .unzip();
+            Puzzle {
+                name: "Interrupt Handler",
+                bad_nodes: &[8],
+                inputs: btreemap! {
+                    (0, Port::UP) => inputs.iter().map(|v| v[0]).collect(),
+                    (1, Port::UP) => inputs.iter().map(|v| v[1]).collect(),
+                    (2, Port::UP) => inputs.iter().map(|v| v[2]).collect(),
+                    (3, Port::UP) => inputs.iter().map(|v| v[3]).collect(),
+                },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
+        "40196" => {
+            let (input, output) = random_vec(&mut rng, input_size, 0, 3)
+                .into_iter()
+                .zip(random_vec(&mut rng, input_size, 1, 30).into_iter())
+                .scan(0, |zeroes, (zrand, nrand)|
+                    if zrand == 0 {
+                        *zeroes = 0;
+                        Some((nrand, 0))
+                    } else {
+                        *zeroes += 1;
+                        if *zeroes == 3 {
+                            *zeroes -= 1;
+                            Some((0, 1))
+                        } else {
+                            Some((0, 0))
+                        }
+                    })
+                .unzip();
+            Puzzle {
+                name: "Signal Pattern Detector",
+                bad_nodes: &[3],
+                inputs: btreemap! { (1, Port::UP) => input },
+                outputs: btreemap! { (10, Port::DOWN) => output },
+            }
+        }
         "41427" => {
             let mut input = vec![];
             let mut output1 = vec![999];
