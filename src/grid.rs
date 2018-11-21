@@ -132,9 +132,10 @@ impl ComputeGrid {
                 }
             };
 
-            add_value_from(Port::UP);
+            // The order is important because it affects which port completes first for an ANY read.
             add_value_from(Port::LEFT);
             add_value_from(Port::RIGHT);
+            add_value_from(Port::UP);
             add_value_from(Port::DOWN);
 
             // Step the node!
@@ -147,6 +148,7 @@ impl ComputeGrid {
                 if val.is_none() {
                     // the value was taken
                     // FIXME: this usage of port is dubious: what if it is ANY?
+                    assert!(*port != Port::ANY);
                     let (node, idx) = self.get_neighbor(idx, *port).unwrap();
                     if let Some(idx) = idx {
                         debug!("completing write for node {}", idx);

@@ -178,7 +178,9 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             let mut output2 = vec![];
             let mut acc = 0;
             let mut len = 0;
-            for (r, n) in random_vec(&mut rng, input_size, 0, 5).into_iter()
+            let mut zrand = random_vec(&mut rng, input_size, 0, 3);
+            *zrand.last_mut().unwrap() = 0; // make sure it ends with 0.
+            for (r, n) in zrand.into_iter()
                     .zip(random_vec(&mut rng, input_size, 10, 100).into_iter()) {
                 if r == 0 {
                     input.push(0);
