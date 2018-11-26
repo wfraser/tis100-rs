@@ -81,12 +81,14 @@ pub enum Instruction {
     JGZ(String),
     JLZ(String),
     JRO(Src),
+    HCF,
 }
 
 impl Display for Instruction {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.pad(&match self {
-            Instruction::NOP | Instruction::SWP | Instruction::SAV | Instruction::NEG => {
+            Instruction::NOP | Instruction::SWP | Instruction::SAV | Instruction::NEG
+                    | Instruction::HCF => {
                 format!("{:?}", self)
             }
             Instruction::MOV(src, dst) => format!("MOV {}, {}", src, dst),

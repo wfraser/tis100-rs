@@ -163,6 +163,12 @@ impl NodeOps for ComputeNode {
             }
             Instruction::JMP(_) | Instruction::JEZ(_) | Instruction::JNZ(_) | Instruction::JGZ(_)
                 | Instruction::JLZ(_) | Instruction::JRO(_) => (),
+            Instruction::HCF => {
+                error!("tried to execute a Halt and Catch Fire instruction");
+                error!("current node state is {:#?}", self);
+                error!("we are panicking now");
+                panic!("HCF");
+            }
         }
 
         StepResult::Done

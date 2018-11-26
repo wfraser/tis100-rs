@@ -166,6 +166,7 @@ named!(
             src: source >>
             (Instruction::JRO(src))
         )
+        | tag!("HCF") => { |_| Instruction::HCF }
     )
 );
 
