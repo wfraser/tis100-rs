@@ -42,10 +42,10 @@ impl ComputeGrid {
         }
     }
 
-    pub fn program_node(&mut self, idx: usize, program_items: impl Iterator<Item=ProgramItem>)
+    pub fn program_node(&mut self, idx: usize, program_items: impl IntoIterator<Item=ProgramItem>)
         -> bool
     {
-        self.nodes[idx].program_node(program_items)
+        self.nodes[idx].program_node(program_items.into_iter())
     }
 
     pub fn step(&mut self) -> Option<bool> {

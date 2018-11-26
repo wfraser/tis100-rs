@@ -197,6 +197,22 @@ named!(
     )
 );
 
+/// Convenience function for tests: read instructions from a string slice.
+pub fn program_items(input: &[u8]) -> Result<Vec<ProgramItem>, (&[u8], Vec<ProgramItem>)> {
+    named!(parse <Input, Vec<ProgramItem>>, many0!(program_item));
+
+    match parse(input.into()) {
+        Ok((remaining, items)) => {
+            if remaining.is_empty() {
+                Ok(items)
+            } else {
+                Err((&remaining, items))
+            }
+        }
+        Err(_) => Err((input, vec![])),
+    }
+}
+
 named!(
     pub parse_save_file <Input, BTreeMap<NodeId, Vec<ProgramItem>>>,
     fold_many1!(

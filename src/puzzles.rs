@@ -27,10 +27,10 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
                 name: "[simulator debug] Connectivity Check",
                 bad_nodes: &[],
                 inputs: btreemap! {
-                    (1, Port::UP) => vec![1,2,3,4],
+                    (0, Port::UP) => vec![1,2,3,4],
                 },
                 outputs: btreemap! {
-                    (10, Port::DOWN) => vec![10,20,30,40],
+                    (11, Port::DOWN) => vec![1,2,3,4],
                 },
             }
         }
