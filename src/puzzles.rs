@@ -13,33 +13,6 @@ pub struct Puzzle {
     pub outputs: BTreeMap<(usize, Port), Vec<i32>>,
 }
 
-//pub type InputGenerator = Fn(&mut dyn rand::Rng) -> i32;
-//pub type InputGenerator = Iterator<Item=i32>;
-//pub type InputGenerators = BTreeMap<(NodeId, Port), Box<Iterator<Item=i32> + 'static>>;
-
-/*
-struct RngGenerator<R, F> {
-    rng: R,
-    f: F,
-    past: Vec<i32>,
-}
-
-impl<R: Rng, F: 'static + Fn(&[i32], &mut R) -> i32> Iterator for RngGenerator<R, F> {
-    type Item = i32;
-    fn next(&mut self) -> Option<i32> {
-        let next = (self.f)(&self.past, &mut self.rng);
-        self.past.push(next);
-        Some(next)
-    }
-}
-
-impl<R: Rng, F: Fn(&[i32], &mut R) -> i32> RngGenerator<R, F> {
-    pub fn new(rng: R, f: F) -> Self {
-        Self { rng, f, past: vec![] }
-    }
-}
-*/
-
 fn random_vec(rng: &mut impl Rng, num: usize, min: i32, max: i32) -> Vec<i32> {
     let range = rand::distributions::Uniform::new_inclusive(min, max);
     rng.sample_iter(&range).take(num).collect()

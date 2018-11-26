@@ -73,6 +73,7 @@ fn main() {
         Ok((remaining, nodes)) => {
             if !remaining.is_empty() {
                 error!("{} bytes unparsed at the end of input", remaining.len());
+                warn!("parsed input comes out to: {:?}", nodes);
                 exit(1);
             }
 
@@ -117,13 +118,15 @@ fn main() {
 
     let mut cycle = 1;
     loop {
-        if args.verbose > 0 {
+        if args.verbose > 1 {
             info!("--- start of cycle {} ---", cycle);
-        } else {
-            print!("\rcycle {}", cycle);
+        } else if args.verbose == 1 {
+            eprint!("\rcycle {}", cycle);
         }
         if let Some(correct) = grid.step() {
-            print!("\r");
+            if args.verbose == 1 {
+                eprint!("\r");
+            }
             if correct {
                 print!("correct");
             } else {
