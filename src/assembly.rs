@@ -119,6 +119,19 @@ named!(
 named!(space <Input, Input>, take_while!(nom::is_space));
 
 named!(
+    comments_and_whitespace <Input, ()>,
+    do_parse!(
+        many0!(
+            alt_complete!(
+                comment
+                | eat_separator!(b" \t\r\n")
+            )
+        ) >>
+        ()
+    )
+);
+
+named!(
     pub instruction <Input, Instruction>,
     alt_complete!(
         tag!("NOP") => { |_| Instruction::NOP }
@@ -174,19 +187,19 @@ named!(
     pub program_item <Input, ProgramItem>,
     alt_complete!(
         do_parse!(
-            opt!(eat_separator!(b" \t\r\n")) >>
+            comments_and_whitespace >>
             label: label >>
             tag!(":") >>
             opt!(end_of_line) >>
             (ProgramItem::Label(label.to_owned()))
         )
         | do_parse!(
-            opt!(eat_separator!(b" \t\r\n")) >>
+            comments_and_whitespace >>
             i: instruction >>
-            dbg_dmp!(
-                alt!( complete!(end_of_line) => {|_|()}
-                    | eof!() => {|_|()})
-                ) >> // instruction MUST have an end-of-line or EOF
+
+            alt!( complete!(end_of_line) => {|_|()}
+                | eof!() => {|_|()}
+            ) >> // instruction MUST have an end-of-line or EOF
             (ProgramItem::Instruction(i))
         )
         | do_parse!(

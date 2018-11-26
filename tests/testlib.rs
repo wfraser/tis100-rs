@@ -44,6 +44,14 @@ fn parse_test() {
 }
 
 #[test]
+fn parse_whitespace_test() {
+    assert_eq!(
+        ProgramItem::Instruction(
+            Instruction::JEZ("0".to_owned())),
+        asm("\n\t  # foo\n# bar\nJEZ\t0\n# whatever\n\n\n").single());
+}
+
+#[test]
 #[should_panic(expected = "asm parse error")]
 fn out_of_range_immediate() {
     asm("MOV 1000, ANY");
