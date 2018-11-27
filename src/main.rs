@@ -27,6 +27,9 @@ struct Args {
 }
 
 fn main() {
+    println!("TESSELLATED INTELLIGENCE SYSTEMS TIS-100 BIOS V2.0-R");
+    println!("COPYRIGHT (C) 2018, WILLIAM R. FRASER");
+
     let mut args = Args::from_args();
     if args.debug {
         if args.verbose != 0 {
@@ -62,7 +65,13 @@ fn main() {
         });
 
     let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
-    let p = tis100::puzzles::get_puzzle(&puzzle_num, 39, r).unwrap();
+    let p = tis100::puzzles::get_puzzle(&puzzle_num, 39, r)
+        .unwrap_or_else(|| {
+            eprintln!("Unknown puzzle number {:?}", puzzle_num);
+            exit(1);
+        });
+
+    println!(" - SEGMENT {}: \"{}\" -", puzzle_num, p.name);
 
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
 
