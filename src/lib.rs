@@ -12,3 +12,4 @@ pub mod instr;
 pub mod io;
 pub mod node;
 pub mod puzzles;
+pub mod stack;

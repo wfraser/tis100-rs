@@ -1,4 +1,5 @@
 use crate::compute::ComputeNode;
+use crate::stack::StackNode;
 use crate::instr::{Port, ProgramItem};
 use crate::io::{InputNode, OutputNode, VerifyState};
 
@@ -13,6 +14,7 @@ pub struct Node {
 pub enum NodeType {
     Broken(BrokenNode),
     Compute(ComputeNode),
+    Stack(StackNode),
     Input(InputNode),
     Output(OutputNode),
 }
@@ -100,7 +102,12 @@ impl Node {
     }
 
     pub fn complete_write(&mut self, port: Port) {
-        assert_eq!(CycleStep::Write, self.step);
+        if let NodeType::Stack(_) = self.inner {} else {
+            // Stack nodes can have a write completed while they're reading, but other node types
+            // should never have this happen.
+            assert_eq!(CycleStep::Write, self.step);
+        }
+
         self.step = CycleStep::Advance;
         self.pending_output = None;
 
@@ -170,6 +177,13 @@ impl NodeOps for Node {
 
         if let StepResult::IO((port, value)) = res {
             self.pending_output = Some((port, value));
+        }
+
+        if let NodeType::Stack(_) = self.inner {
+            // stack nodes should not get blocked at the Write step
+            // advance it to Read (i.e. skip over Advance) instead
+            debug!("advancing Stack node to Read");
+            self.step = CycleStep::Read;
         }
 
         advance_step!(self, res, CycleStep::Advance);

@@ -9,6 +9,7 @@ pub const PUZZLE_HEIGHT: usize = 3;
 pub struct Puzzle {
     pub name: &'static str,
     pub bad_nodes: &'static [usize],
+    pub stack_nodes: &'static [usize],
     pub inputs: BTreeMap<(usize, Port), Vec<i32>>,
     pub outputs: BTreeMap<(usize, Port), Vec<i32>>,
 }
@@ -26,11 +27,25 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "[simulator debug] Connectivity Check",
                 bad_nodes: &[],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (0, Port::UP) => vec![1,2,3,4],
                 },
                 outputs: btreemap! {
                     (11, Port::DOWN) => vec![1,2,3,4],
+                },
+            }
+        }
+        "DBG02" => {
+            Puzzle {
+                name: "[simulator debug] Stack Node Check",
+                bad_nodes: &[],
+                stack_nodes: &[1],
+                inputs: btreemap! {
+                    (0, Port::UP) => vec![1,2,3,4],
+                },
+                outputs: btreemap! {
+                    (8, Port::DOWN) => vec![4,3,2,1],
                 },
             }
         }
@@ -42,6 +57,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Self-Test Diagnostic",
                 bad_nodes: &[1, 5, 7, 9],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (0, Port::UP) => r1.clone(),
                     (3, Port::UP) => r2.clone(),
@@ -58,6 +74,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Signal Amplifier",
                 bad_nodes: &[3, 8],
+                stack_nodes: &[],
                 inputs:  btreemap! { ( 1, Port::UP) => input },
                 outputs: btreemap! { (10, Port::DOWN) => output },
             }
@@ -72,6 +89,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Differential Converter",
                 bad_nodes: &[7],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (1, Port::UP) => input1,
                     (2, Port::UP) => input2,
@@ -94,6 +112,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Signal Comparator",
                 bad_nodes: &[5, 6, 7],
+                stack_nodes: &[],
                 inputs: btreemap! { (0, Port::UP) => input },
                 outputs: btreemap! {
                     ( 9, Port::DOWN) => output1,
@@ -120,6 +139,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Signal Multiplexer",
                 bad_nodes: &[8],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (1, Port::UP) => input1,
                     (2, Port::UP) => input2,
@@ -138,6 +158,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Sequence Generator",
                 bad_nodes: &[9],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (1, Port::UP) => input1,
                     (2, Port::UP) => input2,
@@ -170,6 +191,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Squence Counter",
                 bad_nodes: &[3],
+                stack_nodes: &[],
                 inputs: btreemap! { (1, Port::UP) => input },
                 outputs: btreemap! {
                     ( 9, Port::DOWN) => output1,
@@ -187,6 +209,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Signal Edge Detector",
                 bad_nodes: &[8],
+                stack_nodes: &[],
                 inputs:  btreemap! { ( 1, Port::UP) => input },
                 outputs: btreemap! { (10, Port::DOWN) => output },
             }
@@ -210,6 +233,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Interrupt Handler",
                 bad_nodes: &[8],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (0, Port::UP) => inputs.iter().map(|v| v[0]).collect(),
                     (1, Port::UP) => inputs.iter().map(|v| v[1]).collect(),
@@ -240,6 +264,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Signal Pattern Detector",
                 bad_nodes: &[3],
+                stack_nodes: &[],
                 inputs: btreemap! { (1, Port::UP) => input },
                 outputs: btreemap! { (10, Port::DOWN) => output },
             }
@@ -274,6 +299,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
             Puzzle {
                 name: "Sequence Peak Detector",
                 bad_nodes: &[7],
+                stack_nodes: &[],
                 inputs: btreemap! {
                     (1, Port::UP) => input,
                 },

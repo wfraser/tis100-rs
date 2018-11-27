@@ -94,3 +94,35 @@ fn connectivity_test() {
     }
     assert_eq!(20, cycle, "wrong number of cycles");
 }
+
+#[test]
+fn stack_test() {
+    let puz = tis100::puzzles::get_puzzle("DBG02", 39, rng()).unwrap();
+    let mut grid = tis100::grid::ComputeGrid::from_puzzle(puz);
+
+    // Move 4 times to the stack node, then 4 times out.
+    // In
+    // ↔ S - -
+    // ↓ - - -
+    // ↓ - - -
+    // Out
+    grid.program_node(0, asm("
+        MOV UP,RIGHT\nMOV UP,RIGHT\nMOV UP,RIGHT\nMOV UP,RIGHT
+        MOV RIGHT,DOWN\nMOV RIGHT,DOWN\nMOV RIGHT,DOWN\nMOV RIGHT,DOWN"));
+    grid.program_node(4, asm("MOV UP, DOWN"));
+    grid.program_node(8, asm("MOV UP, DOWN"));
+
+    let mut cycle = 1;
+    loop {
+        match grid.step() {
+            None => { cycle += 1; }
+            Some(true) => { break; }
+            Some(false) => { panic!("incorrect result"); }
+        }
+        if cycle > 19 {
+            println!("{:#?}", grid);
+            panic!("too many cycles");
+        }
+    }
+    assert_eq!(19, cycle, "wrong number of cycles");
+}
