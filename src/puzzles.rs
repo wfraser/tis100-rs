@@ -24,15 +24,16 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
 {
     Some(match number {
         "DBG01" => {
+            let values = random_vec(&mut rng, input_size, 10, 100);
             Puzzle {
                 name: "[simulator debug] Connectivity Check",
                 bad_nodes: &[],
                 stack_nodes: &[],
                 inputs: btreemap! {
-                    (0, Port::UP) => vec![1,2,3,4],
+                    (0, Port::UP) => values.clone(),
                 },
                 outputs: btreemap! {
-                    (11, Port::DOWN) => vec![1,2,3,4],
+                    (11, Port::DOWN) => values,
                 },
             }
         }

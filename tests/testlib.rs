@@ -1,8 +1,11 @@
 extern crate tis100;
 
+#[macro_use] extern crate maplit;
 extern crate rand;
 
+use tis100::grid::ComputeGrid;
 use tis100::instr::*;
+use tis100::puzzles::Puzzle;
 
 fn rng() -> impl rand::Rng + Clone {
     <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32])
@@ -57,9 +60,30 @@ fn out_of_range_immediate() {
     asm("MOV 1000, ANY");
 }
 
+fn run(grid: &mut ComputeGrid, expected_cycles: usize) {
+    let mut cycle = 1;
+    loop {
+        match grid.step() {
+            None => { cycle += 1; }
+            Some(true) => { break; }
+            Some(false) => { panic!("incorrect result on cycle {}", cycle); }
+        }
+        if cycle > expected_cycles {
+            panic!("too many (>{}) cycles", expected_cycles);
+        }
+    }
+    assert_eq!(expected_cycles, cycle);
+}
+
 #[test]
 fn connectivity_test() {
-    let puz = tis100::puzzles::get_puzzle("DBG01", 39, rng()).unwrap();
+    let puz = Puzzle {
+        name: "test",
+        bad_nodes: &[],
+        stack_nodes: &[],
+        inputs: btreemap! { (0, Port::UP) => vec![1,2,3,4] },
+        outputs: btreemap! { (11, Port::DOWN) => vec![1,2,3,4] },
+    };
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(puz);
 
     // Move the value around in a serpentine motion.
@@ -81,18 +105,44 @@ fn connectivity_test() {
     grid.program_node(10, asm("MOV ANY, RIGHT"));
     grid.program_node(11, asm("MOV ANY, DOWN"));
 
-    let mut cycle = 1;
-    loop {
-        match grid.step() {
-            None => { cycle += 1; }
-            Some(true) => { break; }
-            Some(false) => { panic!("incorrect result"); }
-        }
-        if cycle > 20 {
-            panic!("too many cycles");
-        }
-    }
-    assert_eq!(20, cycle, "wrong number of cycles");
+    run(&mut grid, 20);
+}
+
+#[test]
+fn connectivity_test_asm() {
+    // same as connectivity_test() but with save file text parsing
+    let asm = b"\
+@0
+MOV ANY,RIGHT
+@1
+MOV ANY,RIGHT
+@2
+MOV ANY,RIGHT
+@3
+MOV ANY,DOWN
+@4
+MOV ANY,DOWN
+@5
+MOV ANY,LEFT
+@6
+MOV ANY,LEFT
+@7
+MOV ANY,LEFT
+@8
+MOV ANY,RIGHT
+@9
+MOV ANY,RIGHT
+@10
+MOV ANY,RIGHT
+@11
+MOV ANY,DOWN";
+
+    let puzzle = tis100::puzzles::get_puzzle("DBG01", 39, rng()).unwrap();
+    let mut grid = tis100::grid::ComputeGrid::from_puzzle(puzzle);
+    let nodes = tis100::assembly::parse_save_file(asm).unwrap();
+    grid.program_nodes(nodes);
+
+    run(&mut grid, 90);
 }
 
 #[test]
@@ -112,17 +162,5 @@ fn stack_test() {
     grid.program_node(4, asm("MOV UP, DOWN"));
     grid.program_node(8, asm("MOV UP, DOWN"));
 
-    let mut cycle = 1;
-    loop {
-        match grid.step() {
-            None => { cycle += 1; }
-            Some(true) => { break; }
-            Some(false) => { panic!("incorrect result"); }
-        }
-        if cycle > 19 {
-            println!("{:#?}", grid);
-            panic!("too many cycles");
-        }
-    }
-    assert_eq!(19, cycle, "wrong number of cycles");
+    run(&mut grid, 19);
 }
