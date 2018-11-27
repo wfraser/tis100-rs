@@ -30,8 +30,8 @@ macro_rules! get_instr {
     };
 }
 
-impl ComputeNode {
-    pub fn new() -> Self {
+impl Default for ComputeNode {
+    fn default() -> Self {
         ComputeNode {
             instructions: vec![],
             labels: HashMap::new(),
@@ -42,7 +42,9 @@ impl ComputeNode {
             read_result: None,
         }
     }
+}
 
+impl ComputeNode {
     pub fn load_assembly(&mut self, items: impl Iterator<Item=ProgramItem>) {
         for item in items {
             match item {

@@ -1,7 +1,7 @@
 use crate::compute::ComputeNode;
 use crate::instr::{Port, ProgramItem, SaveFileNodeId};
 use crate::io::{InputNode, OutputNode, VerifyState};
-use crate::node::{Node, NodeType, NodeOps};
+use crate::node::{Node, NodeType, NodeOps, BrokenNode};
 use crate::puzzles::{PUZZLE_WIDTH, PUZZLE_HEIGHT, Puzzle};
 
 use std::collections::BTreeMap;
@@ -19,9 +19,9 @@ impl ComputeGrid {
         let mut nodes = Vec::with_capacity(PUZZLE_WIDTH * PUZZLE_HEIGHT);
         for idx in 0 .. PUZZLE_WIDTH * PUZZLE_HEIGHT {
             let node = if p.bad_nodes.contains(&idx) {
-                Node::new(NodeType::Broken)
+                Node::new(NodeType::Broken(BrokenNode))
             } else {
-                Node::new(NodeType::Compute(ComputeNode::new()))
+                Node::new(NodeType::Compute(ComputeNode::default()))
             };
             nodes.push(node);
         }

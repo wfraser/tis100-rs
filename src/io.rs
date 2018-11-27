@@ -1,4 +1,5 @@
 use crate::instr::Port;
+use crate::node::{StepResult, ReadResult, WriteResult, AdvanceResult, NodeOps};
 
 #[derive(Debug)]
 pub struct InputNode {
@@ -13,17 +14,27 @@ impl InputNode {
             pos: 0,
         }
     }
+}
 
-    pub fn write(&mut self) -> Option<(Port, i32)> {
-        if self.pos < self.values.len() {
-            let value = self.values[self.pos];
+impl NodeOps for InputNode {
+    // default impls for read and compute
+
+    fn write(&mut self) -> WriteResult {
+        if let Some(value) = self.values.get(self.pos) {
             trace!("writing {}", value);
+            StepResult::IO((Port::ANY, *value))
+        } else {
+            StepResult::Done
+        }
+    }
+
+    fn advance(&mut self) -> AdvanceResult {
+        if self.pos < self.values.len() {
             info!("{}", self);
             self.pos += 1;
-            Some((Port::ANY, value))
+            StepResult::Done
         } else {
-            trace!("no more values");
-            None
+            StepResult::NotProgrammed
         }
     }
 }
@@ -59,21 +70,11 @@ impl OutputNode {
         }
     }
 
-    pub fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> Option<Port> {
-        let state = self.do_verify(&mut avail_reads.get_mut(0));
-        self.verified = state;
-        match state {
-            VerifyState::Okay => None,
-            VerifyState::Blocked => Some(Port::ANY),
-            VerifyState::Finished | VerifyState::Failed => None,
-        }
-    }
-
     pub fn verified(&self) -> VerifyState {
         self.verified
     }
 
-    pub fn do_verify(&mut self, avail_read: &mut Option<&mut (Port, Option<i32>)>) -> VerifyState {
+    fn do_verify(&mut self, avail_read: &mut Option<&mut (Port, Option<i32>)>) -> VerifyState {
         if self.pos < self.values.len() {
             if let Some((port, val)) = avail_read {
                 let received = val.take().unwrap();
@@ -103,6 +104,19 @@ impl OutputNode {
             VerifyState::Finished
         }
     }
+}
+impl NodeOps for OutputNode {
+    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
+        let state = self.do_verify(&mut avail_reads.get_mut(0));
+        self.verified = state;
+        match state {
+            VerifyState::Okay => StepResult::Done,
+            VerifyState::Blocked => StepResult::IO(Port::ANY),
+            VerifyState::Finished | VerifyState::Failed => StepResult::NotProgrammed,
+        }
+    }
+
+    // default impls for compute, write, and advance.
 }
 
 impl std::fmt::Display for OutputNode {

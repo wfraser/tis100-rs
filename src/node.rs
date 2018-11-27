@@ -11,7 +11,7 @@ pub struct Node {
 
 #[derive(Debug)]
 pub enum NodeType {
-    Broken,
+    Broken(BrokenNode),
     Compute(ComputeNode),
     Input(InputNode),
     Output(OutputNode),
@@ -47,10 +47,24 @@ pub type WriteResult = StepResult<(Port, i32)>;
 pub type AdvanceResult = StepResult<!>;
 
 pub trait NodeOps {
-    fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult;
-    fn compute(&mut self) -> ComputeResult;
-    fn write(&mut self) -> WriteResult;
-    fn advance(&mut self) -> AdvanceResult;
+    fn read(&mut self, _avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
+        StepResult::NotProgrammed
+    }
+    fn compute(&mut self) -> ComputeResult {
+        StepResult::NotProgrammed
+    }
+    fn write(&mut self) -> WriteResult {
+        StepResult::NotProgrammed
+    }
+    fn advance(&mut self) -> AdvanceResult {
+        StepResult::NotProgrammed
+    }
+}
+
+#[derive(Debug)]
+pub struct BrokenNode;
+impl NodeOps for BrokenNode {
+    // all default impls
 }
 
 impl Node {
@@ -64,7 +78,7 @@ impl Node {
 
     pub fn program_node(&mut self, program_items: impl Iterator<Item=ProgramItem>) -> bool {
         match &mut self.inner {
-            NodeType::Broken => false,
+            NodeType::Broken(_) => false,
             NodeType::Compute(comp) => {
                 comp.load_assembly(program_items);
                 true
@@ -97,10 +111,21 @@ impl Node {
 
     pub fn type_name(&self) -> &'static str {
         match self.inner {
-            NodeType::Broken => "broken",
+            NodeType::Broken(_) => "broken",
             NodeType::Compute(_) => "compute",
+            NodeType::Stack(_) => "stack",
             NodeType::Input(_) => "input",
             NodeType::Output(_) => "output",
+        }
+    }
+
+    fn inner(&mut self) -> &mut dyn NodeOps {
+        match self.inner {
+            NodeType::Broken(ref mut n) => n,
+            NodeType::Compute(ref mut n) => n,
+            NodeType::Stack(ref mut n) => n,
+            NodeType::Input(ref mut n) => n,
+            NodeType::Output(ref mut n) => n,
         }
     }
 }
@@ -126,47 +151,22 @@ macro_rules! advance_step {
 impl NodeOps for Node {
     fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
         check_step!(self, CycleStep::Read);
-        let res = match &mut self.inner {
-            NodeType::Broken => StepResult::NotProgrammed,
-            NodeType::Compute(n) => n.read(avail_reads),
-            NodeType::Input(_) => StepResult::Done,
-            NodeType::Output(n) => {
-                n.read(avail_reads)
-                    .map(StepResult::IO)
-                    .unwrap_or(StepResult::Done)
-            }
-        };
+        let res = self.inner().read(avail_reads);
         advance_step!(self, res, CycleStep::Compute);
         res
     }
 
     fn compute(&mut self) -> ComputeResult {
         check_step!(self, CycleStep::Compute);
-        let res = match &mut self.inner {
-            NodeType::Broken => StepResult::NotProgrammed,
-            NodeType::Compute(n) => n.compute(),
-            NodeType::Input(_) | NodeType::Output(_) => StepResult::Done,
-        };
+        let res = self.inner().compute();
         advance_step!(self, res, CycleStep::Write);
         res
     }
 
     fn write(&mut self) -> WriteResult {
         check_step!(self, CycleStep::Write);
-        if let Some((port, value)) = self.pending_output {
-            return StepResult::IO((port, value));
-        }
 
-        let res = match &mut self.inner {
-            NodeType::Broken => StepResult::NotProgrammed,
-            NodeType::Compute(n) => n.write(),
-            NodeType::Input(n) => {
-                n.write()
-                    .map(StepResult::IO)
-                    .unwrap_or(StepResult::Done)
-            }
-            NodeType::Output(_) => StepResult::Done,
-        };
+        let res = self.inner().write();
 
         if let StepResult::IO((port, value)) = res {
             self.pending_output = Some((port, value));
@@ -178,11 +178,7 @@ impl NodeOps for Node {
 
     fn advance(&mut self) -> AdvanceResult {
         check_step!(self, CycleStep::Advance);
-        let res = match &mut self.inner {
-            NodeType::Broken => StepResult::NotProgrammed,
-            NodeType::Compute(n) => n.advance(),
-            NodeType::Input(_) | NodeType::Output(_) => StepResult::Done,
-        };
+        let res = self.inner().advance();
         advance_step!(self, res, CycleStep::Read);
         res
     }
