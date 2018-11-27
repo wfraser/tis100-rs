@@ -309,6 +309,35 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
                 },
             }
         },
+        "42656" => {
+            let mut input = random_vec(&mut rng, input_size, 10, 100);
+            let mut output = vec![];
+            let mut buf: Vec<i32> = vec![];
+            for (n, random) in input.iter_mut().zip(random_vec(&mut rng, input_size, 0, 5).into_iter()) {
+                if random == 0 {
+                    *n = 0;
+                    output.extend(buf.drain(..).rev());
+                    output.push(0);
+                } else {
+                    buf.push(*n);
+                }
+            }
+            buf.pop();
+            output.extend(buf.drain(..).rev());
+            output.push(0);
+            *input.last_mut().unwrap() = 0;
+            Puzzle {
+                name: "Sequence Reverser",
+                bad_nodes: &[8],
+                stack_nodes: &[2, 9],
+                inputs: btreemap! {
+                    (1, Port::UP) => input,
+                },
+                outputs: btreemap! {
+                    (10, Port::DOWN) => output,
+                },
+            }
+        }
         _ => return None
     })
 }

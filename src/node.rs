@@ -80,12 +80,14 @@ impl Node {
 
     pub fn program_node(&mut self, program_items: impl Iterator<Item=ProgramItem>) -> bool {
         match &mut self.inner {
-            NodeType::Broken(_) => false,
+            NodeType::Broken(_) | NodeType::Stack(_) => false,
             NodeType::Compute(comp) => {
                 comp.load_assembly(program_items);
                 true
             }
-            _ => panic!("attempted to program an I/O node somehow"),
+            NodeType::Input(_) | NodeType::Output(_) => {
+                panic!("attempted to program an I/O node somehow");
+            }
         }
     }
 
