@@ -338,6 +338,25 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, input_size: usize, mut
                 },
             }
         }
+        "43786" => {
+            let input1 = random_vec(&mut rng, input_size, 0, 9);
+            let input2 = random_vec(&mut rng, input_size, 0, 9);
+            let output = input1.iter().zip(input2.iter())
+                .map(|(a, b)| a * b)
+                .collect();
+            Puzzle {
+                name: "Signal Multiplier",
+                bad_nodes: &[8],
+                stack_nodes: &[4, 7],
+                inputs: btreemap! {
+                    (1, Port::UP) => input1,
+                    (2, Port::UP) => input2,
+                },
+                outputs: btreemap! {
+                    (10, Port::DOWN) => output,
+                },
+            }
+        }
         _ => return None
     })
 }
