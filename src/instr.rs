@@ -3,7 +3,7 @@ use std::fmt::{self, Display, Formatter};
 /// IMPORTANT: this corresponds to the node identifier in the save file, which skips over broken
 /// nodes. The node index in ComputeGrid may be different.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct NodeId(pub u8);
+pub struct SaveFileNodeId(pub u8);
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Port {

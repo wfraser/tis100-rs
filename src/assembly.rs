@@ -13,12 +13,12 @@ named!(
 );
 
 named!(
-    pub node_tag <Input, NodeId>,
+    pub node_tag <Input, SaveFileNodeId>,
     do_parse!(
         tag!("@") >>
         id: node_id >>
         end_of_line >>
-        (NodeId(id))
+        (SaveFileNodeId(id))
     )
 );
 
@@ -210,32 +210,45 @@ named!(
     )
 );
 
-/// Convenience function for tests: read instructions from a string slice.
-pub fn program_items(input: &[u8]) -> Result<Vec<ProgramItem>, (&[u8], Vec<ProgramItem>)> {
-    named!(parse <Input, Vec<ProgramItem>>, many0!(program_item));
-
-    match parse(input.into()) {
-        Ok((remaining, items)) => {
-            if remaining.is_empty() {
-                Ok(items)
-            } else {
-                Err((&remaining, items))
+macro_rules! map_result {
+    ($input:expr, $f:expr) => {
+        match $f($input.into()) {
+            Ok((remaining, ret)) => {
+                if remaining.is_empty() {
+                    Ok(ret)
+                } else {
+                    Err((&remaining, ret))
+                }
             }
+            Err(_) => Err(($input, Default::default())),
         }
-        Err(_) => Err((input, vec![])),
     }
 }
 
-named!(
-    pub parse_save_file <Input, BTreeMap<NodeId, Vec<ProgramItem>>>,
-    fold_many1!(
-        complete!(
-            pair!(
-                node_tag,
-                many0!(program_item)
-            )
-        ),
-        BTreeMap::<NodeId, Vec<ProgramItem>>::new(),
-        |mut acc: BTreeMap<_,_>, item: (NodeId, Vec<_>)| { acc.insert(item.0, item.1); acc }
-    )
-);
+/// Convenience function for tests: read instructions from a string slice.
+pub fn program_items(input: &[u8]) -> Result<Vec<ProgramItem>, (&[u8], Vec<ProgramItem>)> {
+    named!(parse <Input, Vec<ProgramItem>>, many0!(program_item));
+    map_result!(input, parse)
+}
+
+pub fn parse_save_file(input: &[u8])
+    -> Result<
+        BTreeMap<SaveFileNodeId, Vec<ProgramItem>>,
+        (&[u8], BTreeMap<SaveFileNodeId, Vec<ProgramItem>>)>
+{
+    named!(
+        parse <Input, BTreeMap<SaveFileNodeId, Vec<ProgramItem>>>,
+        fold_many1!(
+            complete!(
+                pair!(
+                    node_tag,
+                    many0!(program_item)
+                )
+            ),
+            BTreeMap::<SaveFileNodeId, Vec<ProgramItem>>::new(),
+            |mut acc: BTreeMap<_,_>, item: (SaveFileNodeId, Vec<_>)| { acc.insert(item.0, item.1); acc }
+        )
+    );
+
+    map_result!(input, parse)
+}

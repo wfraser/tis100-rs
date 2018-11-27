@@ -66,52 +66,31 @@ fn main() {
 
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(p);
 
-    let mut num_nodes = 0;
-    let mut num_instructions = 0;
-    let mut offset = 0;
-    match tis100::assembly::parse_save_file(nom::types::CompleteByteSlice(&input)) {
-        Ok((remaining, nodes)) => {
-            if !remaining.is_empty() {
-                error!("{} bytes unparsed at the end of input", remaining.len());
-                warn!("parsed input comes out to: {:?}", nodes);
-                exit(1);
-            }
-
-            for (id, asm) in nodes {
-                info!("Save file node {}:", id.0);
-
-                if !asm.is_empty() {
-                    num_nodes += 1;
-                    num_instructions += asm.iter()
-                        .filter(|item|
-                            if let tis100::instr::ProgramItem::Instruction(_) = item {
-                                true
-                            } else {
-                                false
-                            })
-                        .count();
-                }
-
-                for i in &asm {
-                    info!("\t{:?}", i);
-                }
-
-                let mut asm_iter = asm.into_iter();
-                loop {
-                    let programmed = grid.program_node(id.0 as usize + offset, &mut asm_iter);
-                    if programmed {
-                        info!("\tprogrammed node {}", id.0 as usize + offset);
-                        break;
-                    } else {
-                        offset += 1;
-                    }
-                }
-            }
+    match tis100::assembly::parse_save_file(&input) {
+        Ok(nodes) => {
+            grid.program_nodes(nodes);
         }
-        Err(e) => {
-            error!("parse error: {:?}", e);
+        Err((remaining, nodes)) => {
+            let pos = input.len() - remaining.len();
+            let (line, col) = input.iter()
+                .take(pos)
+                .fold((1, 0), |(mut line, mut col), byte| {
+                    if *byte == b'\n' {
+                        line += 1;
+                        col = 0;
+                    } else {
+                        col += 1;
+                    }
+                    (line, col)
+                });
+            error!("parse error at {}:{} (offset {})", line, col, pos);
+            error!("parsed input up to that point: {:?}", nodes);
+            exit(1);
         }
     }
+
+    let num_nodes = grid.count_programmed_nodes();
+    let num_instructions = grid.count_instructions();
 
     println!("{} nodes programmed", num_nodes);
     println!("{} total instructions", num_instructions);

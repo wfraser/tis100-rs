@@ -1,5 +1,5 @@
 use crate::compute::ComputeNode;
-use crate::instr::{Port, ProgramItem};
+use crate::instr::{Port, ProgramItem, SaveFileNodeId};
 use crate::io::{InputNode, OutputNode, VerifyState};
 use crate::node::{Node, NodeType, NodeOps};
 use crate::puzzles::{PUZZLE_WIDTH, PUZZLE_HEIGHT, Puzzle};
@@ -46,6 +46,50 @@ impl ComputeGrid {
         -> bool
     {
         self.nodes[idx].program_node(program_items.into_iter())
+    }
+
+    pub fn program_nodes(&mut self, node_map: BTreeMap<SaveFileNodeId, Vec<ProgramItem>>) {
+        let mut offset = 0;
+        for (id, asm) in node_map {
+            if log_enabled!(log::Level::Debug) {
+                debug!("Save file node {}:", id.0);
+                for inst in &asm {
+                    debug!("\t{:?}", inst);
+                }
+            }
+
+            let mut asm_iter = asm.into_iter();
+            loop {
+                let idx = id.0 as usize + offset;
+                let programmed = self.program_node(idx, &mut asm_iter);
+                if programmed {
+                    debug!("\tprogrammed node {}", idx);
+                    break;
+                } else {
+                    // encountered a broken node; continue to the next one.
+                    offset += 1;
+                }
+            }
+        }
+    }
+
+    fn compute_nodes<'a>(&'a self) -> impl Iterator<Item=&ComputeNode> + 'a {
+        self.nodes.iter()
+            .filter_map(|node| match node.inner {
+                NodeType::Compute(ref c) => Some(c),
+                _ => None,
+            })
+    }
+
+    pub fn count_programmed_nodes(&self) -> usize {
+        self.compute_nodes()
+            .filter(|node| !node.instructions.is_empty())
+            .count()
+    }
+
+    pub fn count_instructions(&self) -> usize {
+        self.compute_nodes()
+            .fold(0, |acc, node| acc + node.instructions.len())
     }
 
     pub fn step(&mut self) -> Option<bool> {
