@@ -8,7 +8,7 @@ pub struct StackNode {
 
 impl NodeOps for StackNode {
     fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
-        for (src_port, value) in avail_reads {
+        if let Some((src_port, value)) = avail_reads.get_mut(0).take() {
             let value = value.take().unwrap();
             debug!("stack node read {} from {}", value, src_port);
             self.values.push(value);
