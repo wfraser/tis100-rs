@@ -6,9 +6,7 @@ written in rust, for fun.
 
 # Current Status
 
-I have implemented support for puzzles 00150 through 41427.
-
-The next puzzles after that involve stack memory nodes, which haven't been implemented yet.
+I have implemented support for puzzles 00150 through 51781.
 
 # Usage
 
