@@ -51,6 +51,7 @@ impl VisualizationNode {
 
     fn handle_value(&mut self, value: i32) -> VerifyState {
         if value == -1 {
+            info!("resetting cursor");
             self.cursor = None;
             return VerifyState::Okay;
         }

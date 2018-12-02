@@ -374,6 +374,28 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                 ..Puzzle::default()
             }
         }
+        "51781" => {
+            Puzzle {
+                name: "Image Test Pattern 2",
+                bad_nodes: &[0],
+                visual: btreemap! {
+                    (10, Port::DOWN) => (0 .. VIZ_HEIGHT).into_iter()
+                        .flat_map(|y| {
+                            (0 .. VIZ_WIDTH).into_iter()
+                                .map(move |x| (x, y))
+                        })
+                        .map(|(x, y)| {
+                            if x % 2 == y % 2 {
+                                Color::White
+                            } else {
+                                Color::Black
+                            }
+                        })
+                        .collect(),
+                },
+                ..Puzzle::default()
+            }
+        }
         _ => return None
     })
 }
