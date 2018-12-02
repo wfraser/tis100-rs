@@ -109,11 +109,7 @@ impl NodeOps for OutputNode {
     fn read(&mut self, avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
         let state = self.do_verify(&mut avail_reads.get_mut(0));
         self.verified = state;
-        match state {
-            VerifyState::Okay => StepResult::Done,
-            VerifyState::Blocked => StepResult::IO(Port::ANY),
-            VerifyState::Finished | VerifyState::Failed => StepResult::NotProgrammed,
-        }
+        state.as_read_result()
     }
 
     // default impls for compute, write, and advance.
@@ -140,4 +136,14 @@ pub enum VerifyState {
     Okay,
     Blocked,
     Finished,
+}
+
+impl VerifyState {
+    pub fn as_read_result(self) -> ReadResult {
+        match self {
+            VerifyState::Okay => StepResult::Done,
+            VerifyState::Blocked => StepResult::IO(Port::ANY),
+            VerifyState::Finished | VerifyState::Failed => StepResult::NotProgrammed,
+        }
+    }
 }

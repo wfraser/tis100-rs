@@ -2,8 +2,9 @@ use crate::compute::ComputeNode;
 use crate::instr::{Port, ProgramItem, SaveFileNodeId};
 use crate::io::{InputNode, OutputNode, VerifyState};
 use crate::node::{Node, NodeType, NodeOps, BrokenNode};
-use crate::puzzles::{PUZZLE_WIDTH, PUZZLE_HEIGHT, Puzzle};
+use crate::puzzles::{Puzzle, PUZZLE_WIDTH, PUZZLE_HEIGHT, VIZ_WIDTH, VIZ_HEIGHT};
 use crate::stack::StackNode;
+use crate::visualization::VisualizationNode;
 
 use std::collections::BTreeMap;
 
@@ -35,6 +36,13 @@ impl ComputeGrid {
         }
         for ((id, port), data) in p.outputs.into_iter() {
             external.insert((id, port), Node::new(NodeType::Output(OutputNode::new(data))));
+        }
+        for ((id, port), data) in p.visual.into_iter() {
+            external.insert(
+                (id, port),
+                Node::new(
+                    NodeType::Visualization(
+                        VisualizationNode::new(data, VIZ_WIDTH, VIZ_HEIGHT))));
         }
 
         ComputeGrid {

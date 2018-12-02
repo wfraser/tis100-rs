@@ -65,7 +65,7 @@ fn main() {
         });
 
     let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
-    let p = tis100::puzzles::get_puzzle(&puzzle_num, 39, r)
+    let p = tis100::puzzles::get_puzzle(&puzzle_num, r)
         .unwrap_or_else(|| {
             eprintln!("Unknown puzzle number {:?}", puzzle_num);
             exit(1);

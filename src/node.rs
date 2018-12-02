@@ -2,6 +2,7 @@ use crate::compute::ComputeNode;
 use crate::stack::StackNode;
 use crate::instr::{Port, ProgramItem};
 use crate::io::{InputNode, OutputNode, VerifyState};
+use crate::visualization::VisualizationNode;
 
 #[derive(Debug)]
 pub struct Node {
@@ -17,6 +18,7 @@ pub enum NodeType {
     Stack(StackNode),
     Input(InputNode),
     Output(OutputNode),
+    Visualization(VisualizationNode),
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -85,17 +87,17 @@ impl Node {
                 comp.load_assembly(program_items);
                 true
             }
-            NodeType::Input(_) | NodeType::Output(_) => {
+            NodeType::Input(_) | NodeType::Output(_) | NodeType::Visualization(_) => {
                 panic!("attempted to program an I/O node somehow");
             }
         }
     }
 
     pub fn verify_state(&self) -> Option<VerifyState> {
-        if let NodeType::Output(out) = &self.inner {
-            Some(out.verified())
-        } else {
-            None
+        match &self.inner {
+            NodeType::Output(out) => Some(out.verified()),
+            NodeType::Visualization(v) => Some(v.verified()),
+            _ => None,
         }
     }
 
@@ -125,6 +127,7 @@ impl Node {
             NodeType::Stack(_) => "stack",
             NodeType::Input(_) => "input",
             NodeType::Output(_) => "output",
+            NodeType::Visualization(_) => "visualization",
         }
     }
 
@@ -135,6 +138,7 @@ impl Node {
             NodeType::Stack(ref mut n) => n,
             NodeType::Input(ref mut n) => n,
             NodeType::Output(ref mut n) => n,
+            NodeType::Visualization(ref mut n) => n,
         }
     }
 }
