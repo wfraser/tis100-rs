@@ -379,9 +379,9 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                 name: "Image Test Pattern 2",
                 bad_nodes: &[0],
                 visual: btreemap! {
-                    (10, Port::DOWN) => (0 .. VIZ_HEIGHT).into_iter()
+                    (10, Port::DOWN) => (0 .. VIZ_HEIGHT)
                         .flat_map(|y| {
-                            (0 .. VIZ_WIDTH).into_iter()
+                            (0 .. VIZ_WIDTH)
                                 .map(move |x| (x, y))
                         })
                         .map(|(x, y)| {

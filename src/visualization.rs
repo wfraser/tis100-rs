@@ -23,13 +23,7 @@ pub struct VisualizationNode {
 }
 
 fn in_bounds(value: i32, size: usize) -> bool {
-    if value < 0 {
-        false
-    } else if value as usize >= size {
-        false
-    } else {
-        true
-    }
+    value >= 0 && (value as usize) < size
 }
 
 impl VisualizationNode {
