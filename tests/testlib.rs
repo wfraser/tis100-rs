@@ -83,6 +83,7 @@ fn connectivity_test() {
         stack_nodes: &[],
         inputs: btreemap! { (0, Port::UP) => vec![1,2,3,4] },
         outputs: btreemap! { (11, Port::DOWN) => vec![1,2,3,4] },
+        visual: btreemap! {},
     };
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(puz);
 
@@ -137,7 +138,7 @@ MOV ANY,RIGHT
 @11
 MOV ANY,DOWN";
 
-    let puzzle = tis100::puzzles::get_puzzle("DBG01", 39, rng()).unwrap();
+    let puzzle = tis100::puzzles::get_puzzle("DBG01", rng()).unwrap();
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(puzzle);
     let nodes = tis100::assembly::parse_save_file(asm).unwrap();
     grid.program_nodes(nodes);
@@ -147,7 +148,7 @@ MOV ANY,DOWN";
 
 #[test]
 fn stack_test() {
-    let puz = tis100::puzzles::get_puzzle("DBG02", 39, rng()).unwrap();
+    let puz = tis100::puzzles::get_puzzle("DBG02", rng()).unwrap();
     let mut grid = tis100::grid::ComputeGrid::from_puzzle(puz);
 
     // Move 4 times to the stack node, then 4 times out.
