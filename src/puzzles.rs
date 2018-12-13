@@ -396,6 +396,65 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                 ..Puzzle::default()
             }
         }
+        "52544" => {
+            let mut input = vec![];
+            let mut viz = vec![Color::Black; VIZ_WIDTH * VIZ_HEIGHT];
+            'rand: while input.len() < 9*4 {
+                let x: i32 = rng.gen_range(0, VIZ_WIDTH as i32 - 5);
+                let y: i32 = rng.gen_range(0, VIZ_HEIGHT as i32 - 5);
+                let w: i32 = rng.gen_range(3, 6);
+                let h: i32 = rng.gen_range(3, 6);
+                // check for overlap or adjacent filled pixels
+                for x in x-1 .. x+w+1 {
+                    for y in y-1 .. y+h+1 {
+                        if y > 0 && x > 0
+                            && viz[(y as usize) * VIZ_WIDTH + (x as usize)] != Color::Black
+                        {
+                            continue 'rand;
+                        }
+                    }
+                }
+                // add the rectangle and set the pixels
+                input.extend_from_slice(&[x, y, w, h]);
+                println!("adding {},{} {}x{}", x, y, w, h);
+                for x in x .. x+w {
+                    for y in y .. y+h {
+                        viz[(y as usize) * VIZ_WIDTH + (x as usize)] = Color::White;
+                    }
+                }
+            }
+            Puzzle {
+                name: "Exposure Mask Viewer",
+                bad_nodes: &[3],
+                inputs: btreemap! {
+                    (1, Port::UP) => input,
+                },
+                visual: btreemap! {
+                    (10, Port::DOWN) => viz,
+                },
+                ..Puzzle::default()
+            }
+        }
+        "53897" => {
+            let input = random_vec(&mut rng, VIZ_WIDTH, 5, VIZ_HEIGHT as i32);
+            let mut viz = vec![Color::Black; VIZ_WIDTH * VIZ_HEIGHT];
+            for (x, n) in input.iter().cloned().enumerate() {
+                for y in VIZ_HEIGHT - (n as usize) .. VIZ_HEIGHT {
+                    viz[y * VIZ_WIDTH + x] = Color::White;
+                }
+            }
+            Puzzle {
+                name: "Histogram Viewer",
+                bad_nodes: &[8],
+                inputs: btreemap! {
+                    (1, Port::UP) => input,
+                },
+                visual: btreemap! {
+                    (10, Port::DOWN) => viz,
+                },
+                ..Puzzle::default()
+            }
+        }
         _ => return None
     })
 }
