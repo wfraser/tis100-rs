@@ -64,6 +64,7 @@ fn is_label_char(byte: u8) -> bool {
     match byte {
         b'A'...b'Z' => true,
         b'0'...b'9' => true,
+        b'-' => true,
         _ => false,
     }
 }
