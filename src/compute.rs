@@ -24,7 +24,7 @@ macro_rules! get_instr {
         match $self.instructions.get($self.pc) {
             Some(i) => i,
             None => {
-                return StepResult::NotProgrammed;
+                return StepResult::Nothing;
             }
         }
     };
@@ -93,7 +93,7 @@ impl NodeOps for ComputeNode {
             Instruction::JRO(src) => src,
             _ => {
                 trace!("no read needed");
-                return StepResult::Done;
+                return StepResult::Nothing;
             }
         };
 
@@ -141,7 +141,7 @@ impl NodeOps for ComputeNode {
             }
         });
 
-        StepResult::Done
+        StepResult::Okay
     }
 
     fn compute(&mut self) -> ComputeResult {
@@ -173,7 +173,7 @@ impl NodeOps for ComputeNode {
             }
         }
 
-        StepResult::Done
+        StepResult::Okay
     }
 
     fn write(&mut self) -> WriteResult {
@@ -200,10 +200,10 @@ impl NodeOps for ComputeNode {
                     return StepResult::IO((actual_port, val));
                 }
             }
-            StepResult::Done
+            StepResult::Okay
         } else {
             trace!("no write needed");
-            StepResult::Done
+            StepResult::Nothing
         }
     }
 
@@ -250,6 +250,6 @@ impl NodeOps for ComputeNode {
 
         self.read_result = None;
 
-        StepResult::Done
+        StepResult::Okay
     }
 }

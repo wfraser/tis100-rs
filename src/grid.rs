@@ -1,7 +1,7 @@
 use crate::compute::ComputeNode;
 use crate::instr::{Port, ProgramItem, SaveFileNodeId};
 use crate::io::{InputNode, OutputNode, VerifyState};
-use crate::node::{Node, NodeType, NodeOps, BrokenNode};
+use crate::node::{Node, NodeType, NodeOps, BrokenNode, StepResult};
 use crate::puzzles::{Puzzle, PUZZLE_WIDTH, PUZZLE_HEIGHT, VIZ_WIDTH, VIZ_HEIGHT};
 use crate::stack::StackNode;
 use crate::visualization::VisualizationNode;
@@ -174,6 +174,10 @@ impl ComputeGrid {
         debug!("begin READ step");
 
         for idx in 0 .. self.nodes.len() {
+            if let NodeType::Broken(_) = self.nodes[idx].inner {
+                continue;
+            }
+
             // get readable values from neighbors
             let mut avail_reads = vec![];
 
@@ -197,7 +201,9 @@ impl ComputeGrid {
 
             debug!("node {}", idx);
             let result = self.nodes[idx].read(avail_reads.as_mut_slice());
-            debug!("  result: {:?}", result);
+            if result != StepResult::Nothing {
+                debug!("  result: {:?}", result);
+            }
 
             for (port, val) in &avail_reads {
                 if val.is_none() {
@@ -227,7 +233,9 @@ impl ComputeGrid {
 
             debug!("{} port", node.type_name());
             let result = node.read(avail_reads.as_mut_slice());
-            debug!("  result: {:?}", result);
+            if result != StepResult::Nothing {
+                debug!("  result: {:?}", result);
+            }
 
             for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
                 if val.is_none() {
@@ -242,8 +250,14 @@ impl ComputeGrid {
     fn compute(&mut self) {
         debug!("begin COMPUTE step");
         for idx in 0 .. self.nodes.len() {
+            if let NodeType::Broken(_) = self.nodes[idx].inner {
+                continue;
+            }
+
             let result = self.nodes[idx].compute();
-            debug!("node {}: {:?}", idx, result);
+            if result != StepResult::Nothing {
+                debug!("node {}: {:?}", idx, result);
+            }
         }
         for node in self.external.values_mut() {
             node.compute();
@@ -254,15 +268,23 @@ impl ComputeGrid {
         debug!("begin WRITE step");
 
         for idx in 0 .. self.nodes.len() {
+            if let NodeType::Broken(_) = self.nodes[idx].inner {
+                continue;
+            }
+
             debug!("node {}", idx);
             let result = self.nodes[idx].write();
-            debug!("  result: {:?}", result);
+            if result != StepResult::Nothing {
+                debug!("  result: {:?}", result);
+            }
         }
 
         for node in self.external.values_mut() {
             debug!("{} port", node.type_name());
             let result = node.write();
-            debug!("  result: {:?}", result);
+            if result != StepResult::Nothing {
+                debug!("  result: {:?}", result);
+            }
         }
     }
 
@@ -270,7 +292,9 @@ impl ComputeGrid {
         debug!("begin ADVANCE step");
         for idx in 0 .. self.nodes.len() {
             let result = self.nodes[idx].advance();
-            debug!("node {}: {:?}", idx, result);
+            if result != StepResult::Nothing {
+                debug!("node {}: {:?}", idx, result);
+            }
         }
         for node in self.external.values_mut() {
             node.advance();

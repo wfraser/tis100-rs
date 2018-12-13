@@ -24,7 +24,7 @@ impl NodeOps for InputNode {
             trace!("writing {}", value);
             StepResult::IO((Port::ANY, *value))
         } else {
-            StepResult::Done
+            StepResult::Nothing
         }
     }
 
@@ -32,9 +32,9 @@ impl NodeOps for InputNode {
         if self.pos < self.values.len() {
             info!("{}", self);
             self.pos += 1;
-            StepResult::Done
+            StepResult::Okay
         } else {
-            StepResult::NotProgrammed
+            StepResult::Nothing
         }
     }
 }
@@ -141,9 +141,9 @@ pub enum VerifyState {
 impl VerifyState {
     pub fn as_read_result(self) -> ReadResult {
         match self {
-            VerifyState::Okay => StepResult::Done,
+            VerifyState::Okay => StepResult::Okay,
             VerifyState::Blocked => StepResult::IO(Port::ANY),
-            VerifyState::Finished | VerifyState::Failed => StepResult::NotProgrammed,
+            VerifyState::Finished | VerifyState::Failed => StepResult::Nothing,
         }
     }
 }

@@ -37,11 +37,18 @@ impl std::fmt::Display for CycleStep {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum StepResult<Output> {
-    NotProgrammed,
+    /// Nothing happened.
+    Nothing,
+
+    /// Step successfully completed.
+    Okay,
+
+    /// Node has a value to write or read.
     IO(Output),
-    Done,
+
+    /// Node is blocked on some other cycle step.
     Blocked(CycleStep),
 }
 
@@ -52,16 +59,16 @@ pub type AdvanceResult = StepResult<!>;
 
 pub trait NodeOps {
     fn read(&mut self, _avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
-        StepResult::NotProgrammed
+        StepResult::Nothing
     }
     fn compute(&mut self) -> ComputeResult {
-        StepResult::NotProgrammed
+        StepResult::Nothing
     }
     fn write(&mut self) -> WriteResult {
-        StepResult::NotProgrammed
+        StepResult::Nothing
     }
     fn advance(&mut self) -> AdvanceResult {
-        StepResult::NotProgrammed
+        StepResult::Nothing
     }
 }
 
@@ -153,7 +160,7 @@ macro_rules! check_step {
 macro_rules! advance_step {
     ($self:expr, $res:expr, $next:expr) => {
         match $res {
-            StepResult::Done | StepResult::NotProgrammed => {
+            StepResult::Okay | StepResult::Nothing => {
                 $self.step = $next
             }
             _ => ()

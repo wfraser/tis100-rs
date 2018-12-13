@@ -1,4 +1,4 @@
-use crate::node::{StepResult, ReadResult, ComputeResult, WriteResult, AdvanceResult, NodeOps};
+use crate::node::{StepResult, ReadResult, WriteResult, AdvanceResult, NodeOps};
 use crate::instr::Port;
 
 #[derive(Debug, Default)]
@@ -12,26 +12,24 @@ impl NodeOps for StackNode {
             let value = value.take().unwrap();
             debug!("stack node read {} from {}", value, src_port);
             self.values.push(value);
-            return StepResult::Done
+            return StepResult::Okay
         }
-        StepResult::Done // don't return IO because we don't want to get stuck here
+        StepResult::Nothing // don't return IO because we don't want to get stuck here
     }
 
-    fn compute(&mut self) -> ComputeResult {
-        StepResult::NotProgrammed
-    }
+    // default impl for compute
 
     fn write(&mut self) -> WriteResult {
         if let Some(value) = self.values.last() {
             StepResult::IO((Port::ANY, *value))
         } else {
-            StepResult::Done
+            StepResult::Nothing
         }
     }
 
     fn advance(&mut self) -> AdvanceResult {
         self.values.pop();
-        StepResult::Done
+        StepResult::Okay
     }
 
 }
