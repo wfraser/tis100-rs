@@ -206,8 +206,6 @@ impl ComputeGrid {
             for (port, val) in &avail_reads {
                 if val.is_none() {
                     // the value was taken
-                    // FIXME: this usage of port is dubious: what if it is ANY?
-                    assert!(*port != Port::ANY);
                     let (node, idx) = self.get_neighbor(idx, *port).unwrap();
                     if let Some(idx) = idx {
                         debug!("completing write for node {}", idx);
@@ -235,7 +233,7 @@ impl ComputeGrid {
                 debug!("  result: {:?}", result);
             }
 
-            for (_port, val) in &avail_reads { // FIXME: pointless loop; there can only be one
+            if let Some((_port, val)) = avail_reads.first() {
                 if val.is_none() {
                     // the value was taken
                     debug!("completing write for node {}", idx);
