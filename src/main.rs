@@ -5,8 +5,7 @@
 use rand::SeedableRng;
 use structopt::StructOpt;
 
-use std::fs::File;
-use std::io::Read;
+use std::fs;
 use std::path::PathBuf;
 use std::process::exit;
 
@@ -51,16 +50,10 @@ fn main() {
         .init()
         .unwrap();
 
-    let mut input = vec![];
-    File::open(&args.savefile_path)
+    let input = fs::read(&args.savefile_path)
         .unwrap_or_else(|e| {
-            error!("Error opening {:?}: {}", args.savefile_path, e);
-            exit(1);
-        })
-        .read_to_end(&mut input)
-        .unwrap_or_else(|e| {
-            error!("Read error on {:?}: {}", args.savefile_path, e);
-            exit(1);
+            error!("Failed to read {:?}: {}", args.savefile_path, e);
+            exit(2);
         });
 
     let r = rand_chacha::ChaChaRng::from_seed([0;32]);
