@@ -10,10 +10,9 @@ use std::collections::BTreeMap;
 
 #[derive(Debug)]
 pub struct ComputeGrid {
-    nodes: Vec<Node>,
+    nodes: Vec<Node>, // arranged in row-major order
     external: BTreeMap<(usize, Port), Node>,
-    width: usize,
-    height: usize,
+    row_width: usize,
 }
 
 impl ComputeGrid {
@@ -48,8 +47,7 @@ impl ComputeGrid {
         ComputeGrid {
             nodes,
             external,
-            width: PUZZLE_WIDTH,
-            height: PUZZLE_HEIGHT,
+            row_width: PUZZLE_WIDTH,
         }
     }
 
@@ -134,8 +132,8 @@ impl ComputeGrid {
         } else {
             match port {
                 Port::UP => {
-                    if idx >= self.width {
-                        let n = idx - self.width;
+                    if idx >= self.row_width {
+                        let n = idx - self.row_width;
                         Some((&mut self.nodes[n], Some(n)))
                     } else {
                         None
@@ -158,7 +156,7 @@ impl ComputeGrid {
                     }
                 }
                 Port::DOWN => {
-                    let n = idx + self.width;
+                    let n = idx + self.row_width;
                     if n < self.nodes.len() {
                         Some((&mut self.nodes[n], Some(n)))
                     } else {
