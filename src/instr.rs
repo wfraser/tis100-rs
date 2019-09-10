@@ -11,7 +11,7 @@ pub enum Port {
 }
 
 impl Display for Port {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(&format!("{:?}", self))
     }
 }
@@ -42,7 +42,7 @@ pub enum Src {
 }
 
 impl Display for Src {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Src::Register(r) => write!(f, "{:?}", r),
             Src::Port(p) => write!(f, "{:?}", p),
@@ -58,7 +58,7 @@ pub enum Dst {
 }
 
 impl Display for Dst {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         match self {
             Dst::Register(r) => write!(f, "{:?}", r),
             Dst::Port(p) => write!(f, "{:?}", p),
@@ -85,7 +85,7 @@ pub enum Instruction {
 }
 
 impl Display for Instruction {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(&match self {
             Instruction::NOP | Instruction::SWP | Instruction::SAV | Instruction::NEG
                     | Instruction::HCF => {

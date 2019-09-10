@@ -27,7 +27,7 @@ pub enum CycleStep {
 }
 
 impl std::fmt::Display for CycleStep {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.pad(match self {
             CycleStep::Read => "READ",
             CycleStep::Compute => "COMP",

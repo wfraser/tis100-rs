@@ -40,7 +40,7 @@ impl NodeOps for InputNode {
 }
 
 impl std::fmt::Display for InputNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {
@@ -116,7 +116,7 @@ impl NodeOps for OutputNode {
 }
 
 impl std::fmt::Display for OutputNode {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {

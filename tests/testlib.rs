@@ -1,14 +1,14 @@
-extern crate tis100;
-
+#![deny(rust_2018_idioms)]
 #[macro_use] extern crate maplit;
-extern crate rand;
+
+use rand::SeedableRng;
 
 use tis100::grid::ComputeGrid;
 use tis100::instr::*;
 use tis100::puzzles::Puzzle;
 
 fn rng() -> impl rand::Rng + Clone {
-    <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32])
+    rand_chacha::ChaChaRng::from_seed([0;32])
 }
 
 fn asm(input: &str) -> Vec<ProgramItem> {

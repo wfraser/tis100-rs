@@ -1,9 +1,8 @@
-extern crate tis100;
+#![deny(rust_2018_idioms)]
 
 #[macro_use] extern crate log;
-extern crate structopt;
-extern crate stderrlog;
 
+use rand::SeedableRng;
 use structopt::StructOpt;
 
 use std::fs::File;
@@ -64,7 +63,7 @@ fn main() {
             exit(1);
         });
 
-    let r = <rand::prng::ChaChaRng as rand::SeedableRng>::from_seed([0;32]);
+    let r = rand_chacha::ChaChaRng::from_seed([0;32]);
     let p = tis100::puzzles::get_puzzle(&puzzle_num, r)
         .unwrap_or_else(|| {
             eprintln!("Unknown puzzle number {:?}", puzzle_num);
