@@ -405,8 +405,8 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                 let w: i32 = rng.gen_range(3, 6);
                 let h: i32 = rng.gen_range(3, 6);
                 // check for overlap or adjacent filled pixels
-                for x in x-1 .. x+w+1 {
-                    for y in y-1 .. y+h+1 {
+                for x in x-1 ..= x+w {
+                    for y in y-1 ..= y+h {
                         if y > 0 && x > 0
                             && viz[(y as usize) * VIZ_WIDTH + (x as usize)] != Color::Black
                         {
