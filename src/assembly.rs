@@ -1,12 +1,12 @@
 use crate::instr::*;
 use nom::IResult;
 use nom::branch::alt;
-use nom::bytes::complete::{tag, take_until, take_while};
-use nom::character::complete::{digit1, line_ending, space0, space1};
-use nom::combinator::{all_consuming, complete, opt, map, map_res, recognize, value};
+use nom::bytes::complete::{tag, take_while};
+use nom::character::complete::{digit1, line_ending, multispace1, space0, space1};
+use nom::combinator::{opt, map, map_res, recognize, value};
 use nom::error::ParseError;
 use nom::multi::{fold_many1, many0, many0_count, many1_count};
-use nom::sequence::{preceded, tuple};
+use nom::sequence::tuple;
 use std::collections::BTreeMap;
 
 fn node_id(input: &[u8]) -> IResult<&[u8], u8> {
@@ -19,7 +19,7 @@ fn node_id(input: &[u8]) -> IResult<&[u8], u8> {
 fn node_tag(input: &[u8]) -> IResult<&[u8], SaveFileNodeId> {
     let (input, _) = tag(b"@")(input)?;
     let (input, id) = node_id(input)?;
-    let (input, _) = end_of_line(input)?;
+    let (input, _) = line_ending(input)?;
     Ok((input, SaveFileNodeId(id)))
 }
 
@@ -94,36 +94,55 @@ fn dest(input: &[u8]) -> IResult<&[u8], Dst> {
     )(input)
 }
 
-fn comment(input: &[u8]) -> IResult<&[u8], ()> {
-    map(
-        preceded(
-            tag(b"#"),
-            take_until(&b"\n"[..]),
-        ),
-        |_| ()
+fn comment(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    recognize(
+        tuple(
+            (
+                tag(b"#"),
+                take_while(|byte| byte != b'\n'),
+            )
+        )
     )(input)
 }
 
-fn end_of_line(input: &[u8]) -> IResult<&[u8], ()> {
-    map(
-        many1_count(
-            complete(
-                tuple(
-                    (space0, opt(comment), line_ending)
-                )
+/// Matches any amount of comments, spaces, newlines, but guaranteed at least one newline or EOF.
+fn end_of_line(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    // pro tip: many1_count doesn't like non-capturing parsers, so don't use EOF in it.
+    recognize(
+        tuple(
+            (
+                space0,
+                opt(comment),
+                alt(
+                    (
+                        map(
+                            many1_count(
+                                tuple(
+                                    (
+                                        line_ending, // definitely at least one newline
+                                        space0,
+                                        opt(comment),
+                                    )
+                                )
+                            ),
+                            |_num| (),
+                        ),
+                        eof, // definitely need EOF if we don't get a newline
+                    )
+                ),
             )
         ),
-        |_| (),
     )(input)
 }
 
+/// Matches any amount of comments, spaces, and newlines.
 fn comments_and_whitespace(input: &[u8]) -> IResult<&[u8], ()> {
     map(
         many0_count(
             alt(
                 (
                     comment,
-                    map(nom::character::complete::multispace1, |_| ()),
+                    multispace1, // any whitespace, including newlines
                 )
             ),
         ),
@@ -202,7 +221,7 @@ fn program_item(input: &[u8]) -> IResult<&[u8], ProgramItem> {
         (
             map(tuple((comments_and_whitespace, label, tag(b":"), opt(end_of_line))),
                 |(_, label, _, _)| ProgramItem::Label(label.to_owned())),
-            map(tuple((comments_and_whitespace, instruction, alt((end_of_line, eof)))),
+            map(tuple((comments_and_whitespace, instruction, end_of_line)),
                 |(_, inst, _)| ProgramItem::Instruction(inst)),
             value(ProgramItem::Breakpoint, tuple((tag(b"!"), space0))),
         )
@@ -210,9 +229,12 @@ fn program_item(input: &[u8]) -> IResult<&[u8], ProgramItem> {
 }
 
 pub fn program_items(input: &[u8]) -> Result<Vec<ProgramItem>, (&[u8], Vec<ProgramItem>)> {
-    all_consuming(many0(program_item))(input)
-        .map(|(_, items)| items)
-        .map_err(|_| (input, Default::default()))
+    let result = many0(program_item)(input);
+    match result {
+        Ok((&[], items)) => Ok(items),
+        Ok((rest, items)) => Err((rest, items)),
+        Err(_) => Err((input, Default::default())),
+    }
 }
 
 pub fn parse_save_file(input: &[u8])
@@ -221,9 +243,9 @@ pub fn parse_save_file(input: &[u8])
         (&[u8], BTreeMap<SaveFileNodeId, Vec<ProgramItem>>)>
 {
     let result = fold_many1(
-        tuple((node_tag, many0(program_item))),
+        tuple((node_tag, many0(program_item), opt(end_of_line))),
         BTreeMap::<SaveFileNodeId, Vec<ProgramItem>>::new(),
-        |mut acc, (node_id, items)| {
+        |mut acc, (node_id, items, _)| {
             acc.insert(node_id, items);
             acc
         }
@@ -247,10 +269,37 @@ pub fn parse_save_file(input: &[u8])
 mod tests {
     use super::*;
 
+    macro_rules! check {
+        ($f:ident, $e:expr) => {
+            assert_eq!(Ok((&[][..], &$e[..])), $f(&$e[..]));
+        }
+    }
+
     #[test]
     fn test_end_of_line() {
-        assert!(end_of_line(b"\n").is_ok());
-        assert!(end_of_line(b"").is_err());
+        check!(end_of_line, b"");
+        check!(end_of_line, b"\n");
+        check!(end_of_line, b"\n\n");
+        check!(end_of_line, b"# HI");
+        check!(end_of_line, b"# HI\n");
+        check!(end_of_line, b"# HI\n#THERE");
+        check!(end_of_line, b"# HI\n# THERE");
+        check!(end_of_line, b"# HI\n# THERE\n");
+        check!(end_of_line, b"# HI\n# THERE\n\n");
+        check!(end_of_line, b"# HI\n\n#THERE");
+        check!(end_of_line, b"# HI\n\n# THERE");
+        check!(end_of_line, b"# HI\n\n# THERE\n");
+        check!(end_of_line, b"# HI\n\n# THERE\n\n");
+        check!(end_of_line, b" \n# HI");
+        check!(end_of_line, b" \n# HI\n");
+        check!(end_of_line, b" \n# HI\n\n");
+        check!(end_of_line, b"\n# HI");
+        check!(end_of_line, b"\n# HI\n");
+        check!(end_of_line, b"\n# HI\n\n");
+        check!(end_of_line, b" # HI");
+        check!(end_of_line, b" # HI\n");
+        check!(end_of_line, b" # HI\n\n");
+        // okay?
     }
 
     #[test]
@@ -295,16 +344,11 @@ mod tests {
 
     #[test]
     fn test_arg_sep() {
-        macro_rules! check {
-            ($e:expr) => {
-                assert_eq!(Ok((&[][..], &$e[..])), arg_sep(&$e[..]));
-            }
-        }
-        check!(b",");
-        check!(b" ");
-        check!(b"    ");
-        check!(b"  ,");
-        check!(b",   ");
-        check!(b"  ,  ");
+        check!(arg_sep, b",");
+        check!(arg_sep, b" ");
+        check!(arg_sep, b"    ");
+        check!(arg_sep, b"  ,");
+        check!(arg_sep, b",   ");
+        check!(arg_sep, b"  ,  ");
     }
 }
