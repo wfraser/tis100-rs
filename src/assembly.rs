@@ -5,7 +5,7 @@ use nom::bytes::complete::{tag, take_until, take_while};
 use nom::character::complete::{digit1, line_ending, space0, space1};
 use nom::combinator::{all_consuming, complete, opt, map, map_res, recognize, value};
 use nom::error::ParseError;
-use nom::multi::{many0, many1_count};
+use nom::multi::{fold_many1, many0, many0_count, many1_count};
 use nom::sequence::{preceded, tuple};
 use std::collections::BTreeMap;
 
@@ -119,7 +119,7 @@ fn end_of_line(input: &[u8]) -> IResult<&[u8], ()> {
 
 fn comments_and_whitespace(input: &[u8]) -> IResult<&[u8], ()> {
     map(
-        nom::multi::many0_count(
+        many0_count(
             alt(
                 (
                     comment,
@@ -131,6 +131,21 @@ fn comments_and_whitespace(input: &[u8]) -> IResult<&[u8], ()> {
     )(input)
 }
 
+fn arg_sep(input: &[u8]) -> IResult<&[u8], &[u8]> {
+    alt(
+        (
+            recognize(tuple(
+                (
+                    space0,
+                    tag(b","),
+                    space0,
+                )
+            )),
+            space1,
+        )
+    )(input)
+}
+
 fn instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
     alt(
         (
@@ -139,9 +154,7 @@ fn instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
                 let (input, _) = tag(b"MOV")(input)?;
                 let (input, _) = space1(input)?;
                 let (input, src) = source(input)?;
-                let (input, _) = space0(input)?;
-                let (input, _) = tag(b",")(input)?;
-                let (input, _) = space0(input)?;
+                let (input, _) = arg_sep(input)?;
                 let (input, dst) = dest(input)?;
                 Ok((input, Instruction::MOV(src, dst)))
             },
@@ -207,16 +220,27 @@ pub fn parse_save_file(input: &[u8])
         BTreeMap<SaveFileNodeId, Vec<ProgramItem>>,
         (&[u8], BTreeMap<SaveFileNodeId, Vec<ProgramItem>>)>
 {
-    nom::multi::fold_many1(
+    let result = fold_many1(
         tuple((node_tag, many0(program_item))),
         BTreeMap::<SaveFileNodeId, Vec<ProgramItem>>::new(),
         |mut acc, (node_id, items)| {
             acc.insert(node_id, items);
             acc
         }
-    )(input)
-        .map(|(_, map)| map)
-        .map_err(|_| (input, Default::default()))
+    )(input);
+
+    match result {
+        Ok((&[], map)) => Ok(map),
+        Ok((rest, map)) => {
+            error!("Parse error: not all input processed");
+            Err((rest, map))
+        }
+        Err(nom::Err::Incomplete(_needed)) => unreachable!("incomplete parse should not be possible when using 'complete' parser"),
+        Err(nom::Err::Error((rest, err_kind))) | Err(nom::Err::Failure((rest, err_kind))) => {
+            error!("Parse error: {:?}", err_kind);
+            Err((rest, Default::default()))
+        }
+    }
 }
 
 #[cfg(test)]
@@ -267,5 +291,20 @@ mod tests {
     #[test]
     fn test_node_tag() {
         assert_eq!(SaveFileNodeId(42), node_tag(b"@42\r\n# hello\r\n").unwrap().1);
+    }
+
+    #[test]
+    fn test_arg_sep() {
+        macro_rules! check {
+            ($e:expr) => {
+                assert_eq!(Ok((&[][..], &$e[..])), arg_sep(&$e[..]));
+            }
+        }
+        check!(b",");
+        check!(b" ");
+        check!(b"    ");
+        check!(b"  ,");
+        check!(b",   ");
+        check!(b"  ,  ");
     }
 }
