@@ -79,20 +79,18 @@ impl OutputNode {
             if let Some((port, val)) = avail_read {
                 let received = val.take().unwrap();
                 info!("checking value {} from {}", received, port);
+                info!("{}", self);
                 if received == self.values[self.pos] {
+                    info!("value is correct");
                     self.pos += 1;
-                    info!("{}", self);
                     if self.pos == self.values.len() {
                         info!("finished now!");
                         VerifyState::Finished
                     } else {
-                        info!("value is correct");
                         VerifyState::Okay
                     }
                 } else {
                     error!("wrong input");
-                    error!("{}", self);
-                    error!("got {} instead", received);
                     VerifyState::Failed
                 }
             } else {

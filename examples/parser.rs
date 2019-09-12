@@ -5,6 +5,11 @@ use std::process;
 use tis100::instr::{ProgramItem, SaveFileNodeId};
 
 fn main() {
+    stderrlog::new()
+        .verbosity(4)
+        .init()
+        .unwrap();
+
     let path = env::args_os().nth(1).unwrap_or_else(|| {
         eprintln!("usage: {} <save file path>", env::args().next().unwrap());
         process::exit(1);
