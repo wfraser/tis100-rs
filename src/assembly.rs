@@ -237,14 +237,12 @@ pub fn program_items(input: &[u8]) -> Result<Vec<ProgramItem>, (&[u8], Vec<Progr
     }
 }
 
-pub fn parse_save_file(input: &[u8])
-    -> Result<
-        BTreeMap<SaveFileNodeId, Vec<ProgramItem>>,
-        (&[u8], BTreeMap<SaveFileNodeId, Vec<ProgramItem>>)>
-{
+pub type Nodes = BTreeMap<SaveFileNodeId, Vec<ProgramItem>>;
+
+pub fn parse_save_file(input: &[u8]) -> Result<Nodes, (&[u8], Nodes)> {
     let result = fold_many1(
         tuple((node_tag, many0(program_item), opt(end_of_line))),
-        BTreeMap::<SaveFileNodeId, Vec<ProgramItem>>::new(),
+        Nodes::new(),
         |mut acc, (node_id, items, _)| {
             acc.insert(node_id, items);
             acc

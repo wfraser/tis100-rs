@@ -1,5 +1,6 @@
+use crate::assembly::Nodes;
 use crate::compute::ComputeNode;
-use crate::instr::{Port, ProgramItem, SaveFileNodeId};
+use crate::instr::{Port, ProgramItem};
 use crate::io::{InputNode, OutputNode, VerifyState};
 use crate::node::{Node, NodeType, NodeOps, BrokenNode, StepResult};
 use crate::puzzles::{Puzzle, PUZZLE_WIDTH, PUZZLE_HEIGHT, VIZ_WIDTH, VIZ_HEIGHT};
@@ -57,9 +58,9 @@ impl ComputeGrid {
         self.nodes[idx].program_node(program_items.into_iter())
     }
 
-    pub fn program_nodes(&mut self, node_map: BTreeMap<SaveFileNodeId, Vec<ProgramItem>>) {
+    pub fn program_nodes(&mut self, nodes: Nodes) {
         let mut offset = 0;
-        for (id, asm) in node_map {
+        for (id, asm) in nodes {
             if log_enabled!(log::Level::Debug) {
                 debug!("Save file node {}:", id.0);
                 for inst in &asm {

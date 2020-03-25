@@ -1,8 +1,7 @@
-use std::collections::BTreeMap;
 use std::env;
 use std::fs;
 use std::process;
-use tis100::instr::{ProgramItem, SaveFileNodeId};
+use tis100::assembly::Nodes;
 
 fn main() {
     stderrlog::new()
@@ -41,8 +40,8 @@ fn main() {
     }
 }
 
-fn print_program(map: &BTreeMap<SaveFileNodeId, Vec<ProgramItem>>) {
-    for (node_id, items) in map {
+fn print_program(nodes: &Nodes) {
+    for (node_id, items) in nodes {
         println!("{:?}", node_id);
         for item in items {
             println!("\t{:?}", item);

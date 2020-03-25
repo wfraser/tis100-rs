@@ -98,10 +98,10 @@ fn main() {
 
     let mut cycle = 1;
     loop {
-        if args.verbose > 1 {
-            info!("--- start of cycle {} ---", cycle);
-        } else if args.verbose == 1 {
-            eprint!("\rcycle {}", cycle);
+        match args.verbose {
+            0 => (),
+            1 => eprint!("\rcycle {}", cycle),
+            _ => info!("--- start of cycle {} ---", cycle),
         }
         if let Some(correct) = grid.step() {
             if args.verbose == 1 {
