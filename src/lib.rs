@@ -1,5 +1,4 @@
 #![deny(rust_2018_idioms)]
-#![feature(never_type)]
 
 #[macro_use] extern crate log;
 #[macro_use] extern crate maplit;

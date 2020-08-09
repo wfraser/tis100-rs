@@ -53,9 +53,9 @@ pub enum StepResult<Output> {
 }
 
 pub type ReadResult = StepResult<Port>;
-pub type ComputeResult = StepResult<!>;
+pub type ComputeResult = StepResult<()>;
 pub type WriteResult = StepResult<(Port, i32)>;
-pub type AdvanceResult = StepResult<!>;
+pub type AdvanceResult = StepResult<()>;
 
 pub trait NodeOps {
     fn read(&mut self, _avail_reads: &mut [(Port, Option<i32>)]) -> ReadResult {
