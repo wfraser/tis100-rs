@@ -282,7 +282,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                 if i > 0
                     && input.last() != Some(&0)
                     && (i == INPUT_SIZE - 1
-                        || 0 == rng.gen_range(0, 5))
+                        || 0 == rng.gen_range(0 .. 5))
                 {
                     input.push(0);
                     if i != INPUT_SIZE - 1 {
@@ -290,7 +290,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
                         output2.push(0);
                     }
                 } else {
-                    let value = rng.gen_range(10, 100);
+                    let value = rng.gen_range(10 .. 100);
                     input.push(value);
                     if Some(&value) < output1.last() {
                         *output1.last_mut().unwrap() = value;
@@ -400,10 +400,10 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
             let mut input = vec![];
             let mut viz = vec![Color::Black; VIZ_WIDTH * VIZ_HEIGHT];
             'rand: while input.len() < 9*4 {
-                let x: i32 = rng.gen_range(0, VIZ_WIDTH as i32 - 5);
-                let y: i32 = rng.gen_range(0, VIZ_HEIGHT as i32 - 5);
-                let w: i32 = rng.gen_range(3, 6);
-                let h: i32 = rng.gen_range(3, 6);
+                let x: i32 = rng.gen_range(0 .. VIZ_WIDTH as i32 - 5);
+                let y: i32 = rng.gen_range(0 .. VIZ_HEIGHT as i32 - 5);
+                let w: i32 = rng.gen_range(3 .. 6);
+                let h: i32 = rng.gen_range(3 .. 6);
                 // check for overlap or adjacent filled pixels
                 for x in x-1 ..= x+w {
                     for y in y-1 ..= y+h {
