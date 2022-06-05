@@ -237,7 +237,7 @@ pub type Nodes = BTreeMap<SaveFileNodeId, Vec<ProgramItem>>;
 pub fn parse_save_file(input: &[u8]) -> Result<Nodes, (&[u8], Nodes)> {
     let result = fold_many1(
         tuple((node_tag, many0(program_item), opt(end_of_line))),
-        Nodes::new(),
+        Nodes::new,
         |mut acc, (node_id, items, _)| {
             acc.insert(node_id, items);
             acc
@@ -251,9 +251,9 @@ pub fn parse_save_file(input: &[u8]) -> Result<Nodes, (&[u8], Nodes)> {
             Err((rest, map))
         }
         Err(nom::Err::Incomplete(_needed)) => unreachable!("incomplete parse should not be possible when using 'complete' parser"),
-        Err(nom::Err::Error((rest, err_kind))) | Err(nom::Err::Failure((rest, err_kind))) => {
+        Err(nom::Err::Error(err_kind)) | Err(nom::Err::Failure(err_kind)) => {
             error!("Parse error: {:?}", err_kind);
-            Err((rest, Default::default()))
+            Err(Default::default())
         }
     }
 }
