@@ -73,10 +73,10 @@ impl ComputeNode {
     }
 
     pub fn complete_write(&mut self, port: Port) {
-        if let Some(Instruction::MOV(_src, dst)) = self.instructions.get(self.pc) {
-            if let Dst::Port(Port::ANY) = dst {
-                self.last = port;
-            }
+        if matches!(self.instructions.get(self.pc),
+            Some(Instruction::MOV(_src, Dst::Port(Port::ANY))))
+        {
+            self.last = port;
         }
     }
 }

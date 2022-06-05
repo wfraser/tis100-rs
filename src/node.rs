@@ -21,7 +21,7 @@ pub enum NodeType {
     Visualization(VisualizationNode),
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum CycleStep {
     Read, Compute, Write, Advance,
 }

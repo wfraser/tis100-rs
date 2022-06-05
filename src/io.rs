@@ -1,5 +1,6 @@
 use crate::instr::Port;
 use crate::node::{StepResult, ReadResult, WriteResult, AdvanceResult, NodeOps};
+use std::fmt::Write;
 
 #[derive(Debug)]
 pub struct InputNode {
@@ -44,9 +45,9 @@ impl std::fmt::Display for InputNode {
         let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {
-                out += &format!("<({})> ", n);
+                write!(out, "<({})> ", n)?;
             } else {
-                out += &format!("{} ", n);
+                write!(out, "{} ", n)?;
             }
         }
         out.pop();
@@ -118,9 +119,9 @@ impl std::fmt::Display for OutputNode {
         let mut out = String::new();
         for (idx, n) in self.values.iter().enumerate() {
             if idx == self.pos {
-                out += &format!("<({})> ", n);
+                write!(out, "<({})> ", n)?;
             } else {
-                out += &format!("{} ", n);
+                write!(out, "{} ", n)?;
             }
         }
         out.pop();

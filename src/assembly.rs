@@ -51,7 +51,7 @@ fn immediate(input: &[u8]) -> IResult<&[u8], i16> {
         |bytes: &[u8]| {
             let s = unsafe { std::str::from_utf8_unchecked(bytes) };
             match s.parse::<i16>() {
-                Ok(n) if n < -999 || n > 999 => Err("number out of range"),
+                Ok(n) if !(-999 ..= 999).contains(&n) => Err("number out of range"),
                 Err(_) => Err("number out of range"),
                 Ok(n) => Ok(n),
             }
@@ -60,12 +60,7 @@ fn immediate(input: &[u8]) -> IResult<&[u8], i16> {
 }
 
 fn is_label_char(byte: u8) -> bool {
-    match byte {
-        b'A' ..= b'Z' => true,
-        b'0' ..= b'9' => true,
-        b'-' => true,
-        _ => false,
-    }
+    matches!(byte, b'A' ..= b'Z' | b'0' ..= b'9' | b'-')
 }
 
 fn label(input: &[u8]) -> IResult<&[u8], &str> {
@@ -302,7 +297,7 @@ mod tests {
 
     #[test]
     fn test_eof() {
-        assert_eq!((), eof(b"").unwrap().1);
+        assert!(eof(b"").is_ok());
         assert!(eof(b"foo").is_err());
     }
 
