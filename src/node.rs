@@ -37,7 +37,7 @@ impl std::fmt::Display for CycleStep {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum StepResult<Output> {
     /// Nothing happened.
     Nothing,

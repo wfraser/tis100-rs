@@ -2,25 +2,25 @@
 
 #[macro_use] extern crate log;
 
+use clap::Parser;
 use rand::SeedableRng;
-use structopt::StructOpt;
 
 use std::fs;
 use std::path::PathBuf;
 use std::process::exit;
 
-#[derive(StructOpt, Debug)]
+#[derive(Parser, Debug)]
+#[command(version)]
 struct Args {
-    #[structopt(short="d", long="debug")]
+    #[arg(short='d', long="debug")]
     debug: bool,
 
-    #[structopt(short="v", long="verbose", parse(from_occurrences))]
-    verbose: usize,
+    #[arg(short='v', long="verbose", action=clap::ArgAction::Count)]
+    verbose: u8,
 
-    #[structopt(short="p", long="puzzle")]
+    #[arg(short='p', long="puzzle")]
     puzzle_num: Option<String>,
 
-    #[structopt(parse(from_os_str))]
     savefile_path: PathBuf,
 }
 
@@ -28,7 +28,7 @@ fn main() {
     println!("TESSELLATED INTELLIGENCE SYSTEMS TIS-100 BIOS V2.0-R");
     println!("COPYRIGHT (C) 2018, WILLIAM R. FRASER");
 
-    let mut args = Args::from_args();
+    let mut args = Args::parse();
     if args.debug {
         if args.verbose != 0 {
             eprintln!("warning: debug flag overrides verbose");
@@ -46,7 +46,7 @@ fn main() {
                 .to_owned());
 
     stderrlog::new()
-        .verbosity(args.verbose)
+        .verbosity(usize::from(args.verbose))
         .init()
         .unwrap();
 
