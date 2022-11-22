@@ -44,6 +44,11 @@ fn parse_test() {
                 Dst::Register(
                     Register::NIL))),
         asm("MOV 999, NIL").single());
+
+    assert_eq!(
+        ProgramItem::Instruction(
+            Instruction::JMP("JEZ".to_owned())),
+        asm("JMP JEZ").single());
 }
 
 #[test]

@@ -179,22 +179,23 @@ fn instruction(input: &[u8]) -> IResult<&[u8], Instruction> {
             value(Instruction::NEG, tag(b"NEG")),
             map(tuple(
                     (
-                        alt((tag(b"JMP"), tag(b"JEZ"), tag(b"JNZ"), tag(b"JGZ"), tag(b"JLZ"))),
+                        alt({
+                            // Coerce to the general type signature of the Instruction variant
+                            // constructors, instead of the specific function for each one.
+                            let v = |ctor: fn(String) -> Instruction, txt| value(ctor, tag(txt));
+                            (
+                                v(Instruction::JMP, b"JMP"),
+                                v(Instruction::JEZ, b"JEZ"),
+                                v(Instruction::JNZ, b"JNZ"),
+                                v(Instruction::JGZ, b"JGZ"),
+                                v(Instruction::JLZ, b"JLZ"),
+                            )
+                        }),
                         space1,
                         label,
                     )
                 ),
-                |(op,_,label)| {
-                    let ctor = match op {
-                        b"JMP" => Instruction::JMP,
-                        b"JEZ" => Instruction::JEZ,
-                        b"JNZ" => Instruction::JNZ,
-                        b"JGZ" => Instruction::JGZ,
-                        b"JLZ" => Instruction::JLZ,
-                        _ => unreachable!()
-                    };
-                    ctor(label.to_owned())
-                }
+                |(op_ctor,_,label)| op_ctor(label.to_owned())
             ),
             map(tuple((tag(b"JRO"), space1, source)), |(_,_,src)| Instruction::JRO(src)),
             value(Instruction::HCF, tag(b"HCF")),
