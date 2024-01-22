@@ -251,7 +251,7 @@ pub fn get_puzzle<R: Rng + Clone + 'static>(number: &str, mut rng: R)
         "40196" => {
             let (input, output) = random_vec(&mut rng, INPUT_SIZE, 0, 3)
                 .into_iter()
-                .zip(random_vec(&mut rng, INPUT_SIZE, 1, 30).into_iter())
+                .zip(random_vec(&mut rng, INPUT_SIZE, 1, 30))
                 .scan(0, |zeroes, (zrand, nrand)|
                     if zrand == 0 {
                         *zeroes = 0;

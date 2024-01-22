@@ -14,7 +14,7 @@ fn main() {
         process::exit(1);
     });
 
-    let input = fs::read(&path).expect("failed to read file");
+    let input = fs::read(path).expect("failed to read file");
 
     match tis100::assembly::parse_save_file(&input) {
         Ok(map) => {

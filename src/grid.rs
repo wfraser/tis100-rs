@@ -83,7 +83,7 @@ impl ComputeGrid {
         }
     }
 
-    fn compute_nodes<'a>(&'a self) -> impl Iterator<Item=&ComputeNode> + 'a {
+    fn compute_nodes(&self) -> impl Iterator<Item=&ComputeNode> + '_ {
         self.nodes.iter()
             .filter_map(|node| match node.inner {
                 NodeType::Compute(ref c) => Some(c),
